@@ -14,15 +14,15 @@ def main():
     diffusion = lambda x: SIGMA * x
     diffusion_dx = lambda x: SIGMA
 
-    truncating_proba = 0.1 # this will need to be computed
+    truncating_proba = 0.646 # this will need to be computed
 
-    gamma = 100 
+    gamma = 1000000 
     alpha = 0
-    # for g in range(gamma):
-    #     z = coupled_sum_estimator(truncating_proba, drift, diffusion, diffusion_dx)
-    #     alpha += z
+    for g in range(gamma):
+        z = coupled_sum_estimator(truncating_proba, drift, diffusion, diffusion_dx)
+        alpha += z
         
-    # alpha = alpha / gamma
+    alpha = alpha / gamma
 
 
     truncation_idx = np.random.geometric(p=truncating_proba)
@@ -79,7 +79,7 @@ def coupled_sum_estimator(
     payoffs = np.empty(truncation_idx + 1)
 
     for i in range(truncation_idx, -1, -1):
-        s_maturity = milstein(S0, dw, dt, drift, diffusion, diffusion_dx)
+        s_maturity = milstein_gbm(S0, dt, dw)
         payoffs[i] = european(s_maturity)
         dt = dt[0::2] + dt[1::2]
         dw = dw[0::2] + dw[1::2]
