@@ -1,0 +1,130 @@
+import numpy as np
+from typing import Callable
+import matplotlib.pyplot as plt
+from numpy.typing import ArrayLike
+
+MU = 0.05
+SIGMA = 0.2
+MATURITY = 1.0
+STRIKE = 1.0
+S0 = 1
+
+def main():
+    drift = lambda x: MU * x
+    diffusion = lambda x: SIGMA * x
+    diffusion_dx = lambda x: SIGMA
+
+    truncating_proba = 0.1 # this will need to be computed
+
+    gamma = 100 
+    alpha = 0
+    # for g in range(gamma):
+    #     z = coupled_sum_estimator(truncating_proba, drift, diffusion, diffusion_dx)
+    #     alpha += z
+        
+    # alpha = alpha / gamma
+
+
+    truncation_idx = np.random.geometric(p=truncating_proba)
+
+    n = 2 ** truncation_idx 
+    r = 8 
+    # n_gross = n // r
+    t = np.linspace(0, MATURITY, n + 1)
+    dt = t[1:] - t[:-1]
+    # t_gross = t[::r]
+    dw = np.random.normal(loc=0, scale=np.sqrt(dt), size=n)
+    # dw_gross = np.add.reduceat(dw, range(0, n, r))
+    w = np.r_[0, np.cumsum(dw)]
+    # w_gross = np.r_[0, np.cumsum(dw_gross)]
+    # s = np.empty_like(w_gross)
+    # s[0] = S0
+    # for n in range(n_gross):
+    #     s[n + 1] = milstein_step(s[n], t_gross[n + 1] - t_gross[n], dw_gross[n], drift, diffusion, diffusion_dy)
+
+    # s_maturity = s[-1]
+    
+
+    s_true = S0 * np.exp((MU - SIGMA ** 2 / 2) * t + SIGMA * w)
+    s_maturity = milstein_gbm(S0, dt, dw)
+    # plt.plot(t, s_true)
+    # plt.plot(t_gross, s)
+    # plt.show()
+    
+    payoffs = np.empty(truncation_idx + 1)
+
+    for i in range(truncation_idx, -1, -1):
+        s_maturity = milstein(S0, dw, dt, drift, diffusion, diffusion_dx)
+        payoffs[i] = european(s_maturity)
+        dt = dt[0::2] + dt[1::2]
+        dw = dw[0::2] + dw[1::2]
+
+    coupled_sum_estimatorr = payoffs[0] + np.sum([(payoffs[i+1] - payoffs[i]) / (1 - truncating_proba) ** i for i in range(truncation_idx)])
+    
+    print("end of main")
+
+def coupled_sum_estimator(
+        truncating_proba: float,
+        drift: Callable,
+        diffusion: Callable,
+        diffusion_dx: Callable,
+        ) -> float:
+    truncation_idx = np.random.geometric(p=truncating_proba)
+
+    n = 2 ** truncation_idx 
+    r = 8 
+    t = np.linspace(0, MATURITY, n + 1)
+    dt = t[1:] - t[:-1]
+    dw = np.random.normal(loc=0, scale=np.sqrt(dt), size=n)
+    payoffs = np.empty(truncation_idx + 1)
+
+    for i in range(truncation_idx, -1, -1):
+        s_maturity = milstein(S0, dw, dt, drift, diffusion, diffusion_dx)
+        payoffs[i] = european(s_maturity)
+        dt = dt[0::2] + dt[1::2]
+        dw = dw[0::2] + dw[1::2]
+        
+    estimator = payoffs[0] + np.sum([(payoffs[i+1] - payoffs[i]) / (1 - truncating_proba) ** i for i in range(truncation_idx)])
+    return estimator
+
+def european(x):
+    return np.exp(-MU * MATURITY) * np.maximum(x - STRIKE, 0.0)
+
+def milstein_step(
+        x: float,
+        dt: float,
+        dw: float,
+        drift: Callable,
+        diffusion: Callable,
+        diffusion_dx: Callable,
+        ) -> float:
+    diff = diffusion(x)
+    return (
+        x +
+        drift(x) * dt + 
+        diff * dw + 
+        0.5 * diff * diffusion_dx(x) * (dw ** 2 - dt)
+    )
+
+def milstein(
+        x0: float,
+        dw: ArrayLike,
+        dt: ArrayLike,
+        drift: Callable,
+        diffusion: Callable,
+        diffusion_dx: Callable,
+        ) -> float:
+    x = np.empty(len(dt) + 1)
+    x[0] = x0
+    for n in range(len(dt)):
+        x[n + 1] = milstein_step(x[n], dt[n], dw[n], drift, diffusion, diffusion_dx)
+    return x[-1]
+
+def milstein_gbm(x0, dt, dw):
+    factors = 1 + MU * dt + SIGMA * dw + 0.5 * SIGMA ** 2 * (dw ** 2 - dt)
+    return x0 * np.prod(factors)
+        
+
+
+if __name__ == '__main__':
+    main()
