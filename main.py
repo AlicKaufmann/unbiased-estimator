@@ -9,12 +9,17 @@ MATURITY = 1.0
 STRIKE = 1.0
 S0 = 1
 
+np.random.seed(42)
+
 def main():
     drift = lambda x: MU * x
     diffusion = lambda x: SIGMA * x
     diffusion_dx = lambda x: SIGMA
 
     truncating_proba = 0.646 # this will need to be computed
+
+    bla = np.array([3,7,3,3,3,7,1,8,7])
+    un, counts = np.unique(bla, return_counts=True)
 
     gamma = 1000000 
     alpha = 0
