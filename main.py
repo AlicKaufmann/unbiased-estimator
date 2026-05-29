@@ -8,25 +8,53 @@ from config import GBM, CIR
 np.random.seed(42)
 
 def main():
-    # drift = lambda x: MU * x
-    # diffusion = lambda x: SIGMA * x
-    # diffusion_dx = lambda x: SIGMA
+    z = lamperti_drift_implicit_em_cir(np.sqrt(CIR.v0))
+    v = z ** 2
+    mean_cir = np.mean(v[:, -1])
+    var_cir = np.var(v[:, -1])
+
+    v_milstein = drift_implicit_milstein_cir(CIR.v0)
+    mean_milstein_cir = np.mean(v_milstein[:, -1])
+    var_milstein_cir = np.var(v_milstein[:, -1])
+
+
+    e_kt = np.exp(-CIR.kappa * CIR.maturity)
+    mean_exact = CIR.v0 * e_kt + CIR.theta * (1 - e_kt)
+    var_exact   = (CIR.v0 * CIR.sigma**2 / CIR.kappa * (e_kt - e_kt**2)
+                   + CIR.theta * CIR.sigma**2 / (2*CIR.kappa) * (1 - e_kt)**2)
+
+    # v_maturity = z_maturity ** 2
+    
+
 
     truncating_proba = 2 ** (-3 / 2) # this will need to be computed
 
-    bla = np.array([3,7,3,3,3,7,1,8,7])
-    un, counts = np.unique(bla, return_counts=True)
+    alpha_true = 0.104505836
+    budget = 500_000
 
-    gamma = 10_000 
-    # alpha = 0
-    # for g in range(gamma):
-    #     z = coupled_sum_estimator(truncating_proba)
-    #     alpha += z
-        
-    # alpha = alpha / gamma
+    sample_cost = 0
+    sample_mean = 0
+    n_sample = 0
+    sample_std = 0.0
+    # doing coupled sum monte carlo
+    while sample_cost < budget:
+        payoff_draw, cost_draw = coupled_sum_sampler(truncating_proba)
+        sample_cost += cost_draw
+        sample_mean += payoff_draw
+        n_sample += 1
+        sample_std += (payoff_draw - alpha_true) ** 2
+    sample_mean = sample_mean / n_sample
+    sample_std = np.sqrt(sample_std / n_sample)
+    
+    # compute confidence interval
+    critical_value = 1.96 # for 95% confidence interval
+    left = sample_mean - critical_value * sample_std / np.sqrt(n_sample)
+    right = sample_mean + critical_value * sample_std / np.sqrt(n_sample)
+    
 
-    alpha = np.mean([coupled_sum_estimator(truncating_proba) for _ in range(gamma)])
-    alpha_mc = monte_carlo_estimator()
+    # gamma = 10_000 
+    # alpha = np.mean([coupled_sum_estimator(truncating_proba) for _ in range(gamma)])
+    alpha_mc = monte_carlo_estimator(budget)
 
     truncation_idx = np.random.geometric(p=truncating_proba)
 
@@ -66,12 +94,13 @@ def main():
     
     print("end of main")
 
-def coupled_sum_estimator(
+def coupled_sum_sampler(
         truncating_proba: float,
         ) -> float:
     truncation_idx = np.random.geometric(p=truncating_proba)
 
     n = 2 ** truncation_idx 
+    cost = 2 ** (truncation_idx + 1) - 1
     r = 8 
     t = np.linspace(0, GBM.maturity, n + 1)
     dt = t[1:] - t[:-1]
@@ -85,13 +114,14 @@ def coupled_sum_estimator(
         dw = dw[0::2] + dw[1::2]
         
     estimator = payoffs[0] + np.sum([(payoffs[i+1] - payoffs[i]) / (1 - truncating_proba) ** i for i in range(truncation_idx)])
-    return estimator
+    return estimator, cost
 
-def monte_carlo_estimator():
-    n = 2 ** 10
-    dt = GBM.maturity / n
-    count = 10000
-    dw_batch = np.random.normal(loc=0.0, scale=np.sqrt(dt), size=(count, n))
+def monte_carlo_estimator(budget): # TODO: rethink how to use for other schemes than milstein
+    zeta = 1
+    n_steps = round(budget ** (1 / (2 * zeta + 1)))
+    dt = GBM.maturity / n_steps
+    n_paths = round(budget ** (2 * zeta / (2 * zeta + 1)))
+    dw_batch = np.random.normal(loc=0.0, scale=np.sqrt(dt), size=(n_paths, n_steps))
     s_maturity = milstein_gbm(GBM.s0, dt, dw_batch)
     payoff = european(s_maturity)
     mean = np.mean(payoff)
@@ -134,8 +164,35 @@ def milstein(
 def milstein_gbm(x0, dt, dw):
     factors = 1 + GBM.mu * dt + GBM.sigma * dw + 0.5 * GBM.sigma ** 2 * (dw ** 2 - dt)
     return x0 * np.prod(factors, axis=-1)
-        
 
+def lamperti_drift_implicit_em_cir(z0):
+    n_steps = 2 ** 8 
+    n_paths = 100000
+    dt = CIR.maturity / n_steps
+    dw = np.random.normal(loc=0.0, scale=np.sqrt(dt), size=(n_paths, n_steps))
+    z = np.empty(shape=(n_paths, n_steps + 1))
+    z[:, 0] = z0
+    dt = CIR.maturity / n_steps
+    a = 1 + CIR.kappa * dt / 2
+    c = CIR.kappa * dt / 2 * ( CIR.theta - CIR.sigma ** 2 / (4 * CIR.kappa))
+    for k in range(n_steps):
+        b = z[:, k] + CIR.sigma / 2 * dw[:, k]
+        disc = b ** 2 + 4 * a * c
+        z[:, k + 1] = (b + np.sqrt(disc)) / (2 * a)
+
+    return z 
+
+def drift_implicit_milstein_cir(v0):
+    n_steps = 2 ** 8 
+    n_paths = 100000
+    dt = CIR.maturity / n_steps
+    dw = np.random.normal(loc=0.0, scale=np.sqrt(dt), size=(n_paths, n_steps))
+    v = np.empty(shape=(n_paths, n_steps + 1))
+    v[:, 0] = v0
+    dt = CIR.maturity / n_steps
+    for k in range(n_steps):
+        v[:, k + 1] = 1 / (1 + CIR.kappa * dt) * (v[:, k] + CIR.kappa * CIR.theta * dt + CIR.sigma * np.sqrt(v[:, k]) * dw[:, k] + CIR.sigma ** 2 / 4 * (dw[:, k] ** 2 - dt))
+    return v
 
 if __name__ == '__main__':
     main()

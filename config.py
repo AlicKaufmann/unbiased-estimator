@@ -12,10 +12,10 @@ class GBMConfig:
 
 @dataclass(frozen=True)
 class CIRConfig:
-    kappa: float = 1.0
-    theta: float = 0.05
-    sigma: float = 0.2
-    x0: float = 0.05
+    kappa: float = 2.0
+    theta: float = 0.125
+    sigma: float = 0.5
+    v0: float = 0.125
     maturity: float = 1.0
 
 
