@@ -5,7 +5,7 @@ from numpy.typing import ArrayLike
 
 from config import GBM, CIR
 
-np.random.seed(42)
+np.random.seed(50)
 
 def main():
     z = lamperti_drift_implicit_em_cir(np.sqrt(CIR.v0))
@@ -27,80 +27,33 @@ def main():
     
 
 
-    truncating_proba = 2 ** (-3 / 2) # this will need to be computed
-
-    alpha_true = 0.104505836
+    budgets = np.array([20_000, 100_000, 500_000])
+    means, stds, sdes, costs = [np.empty_like(budgets, dtype=float) for _ in range(4)]
+    for i, budget in enumerate(budgets):
+        mean, std, sde, cost = coupled_sum_mc(budget)
+        means[i] = mean
+        stds[i] = std
+        sdes[i] = sde
+        costs[i] = cost
+        
+    plt.errorbar(budgets, means, sdes)
+    plt.show()
     budget = 500_000
-
-    sample_cost = 0
-    sample_mean = 0
-    n_sample = 0
-    sample_std = 0.0
-    # doing coupled sum monte carlo
-    while sample_cost < budget:
-        payoff_draw, cost_draw = coupled_sum_sampler(truncating_proba)
-        sample_cost += cost_draw
-        sample_mean += payoff_draw
-        n_sample += 1
-        sample_std += (payoff_draw - alpha_true) ** 2
-    sample_mean = sample_mean / n_sample
-    sample_std = np.sqrt(sample_std / n_sample)
-    
-    # compute confidence interval
+        
+        # compute confidence interval
+    mean, std, sde, cost = coupled_sum_mc(budget)
     critical_value = 1.96 # for 95% confidence interval
-    left = sample_mean - critical_value * sample_std / np.sqrt(n_sample)
-    right = sample_mean + critical_value * sample_std / np.sqrt(n_sample)
+    left = mean - critical_value * sde
+    right = mean + critical_value * sde
     
 
-    # gamma = 10_000 
-    # alpha = np.mean([coupled_sum_estimator(truncating_proba) for _ in range(gamma)])
-    alpha_mc = monte_carlo_estimator(budget)
+    alpha_mc = standard_mc(budget)
 
-    truncation_idx = np.random.geometric(p=truncating_proba)
-
-    n = 2 ** truncation_idx 
-    r = 8 
-    # n_gross = n // r
-    t = np.linspace(0, GBM.maturity, n + 1)
-    dt = t[1:] - t[:-1]
-    # t_gross = t[::r]
-    dw = np.random.normal(loc=0, scale=np.sqrt(dt), size=n)
-    # dw_gross = np.add.reduceat(dw, range(0, n, r))
-    w = np.r_[0, np.cumsum(dw)]
-    # w_gross = np.r_[0, np.cumsum(dw_gross)]
-    # s = np.empty_like(w_gross)
-    # s[0] = S0
-    # for n in range(n_gross):
-    #     s[n + 1] = milstein_step(s[n], t_gross[n + 1] - t_gross[n], dw_gross[n], drift, diffusion, diffusion_dy)
-
-    # s_maturity = s[-1]
-    
-
-    s_true = GBM.s0 * np.exp((GBM.mu - GBM.sigma ** 2 / 2) * t + GBM.sigma * w)
-    s_maturity = milstein_gbm(GBM.s0, dt, dw)
-    # plt.plot(t, s_true)
-    # plt.plot(t_gross, s)
-    # plt.show()
-    
-    payoffs = np.empty(truncation_idx + 1)
-
-    # for i in range(truncation_idx, -1, -1):
-    #     s_maturity = milstein(S0, dw, dt, drift, diffusion, diffusion_dx)
-    #     payoffs[i] = european(s_maturity)
-    #     dt = dt[0::2] + dt[1::2]
-    #     dw = dw[0::2] + dw[1::2]
-
-    # coupled_sum_estimatorr = payoffs[0] + np.sum([(payoffs[i+1] - payoffs[i]) / (1 - truncating_proba) ** i for i in range(truncation_idx)])
-    
     print("end of main")
 
-def coupled_sum_sampler(
-        truncating_proba: float,
-        ) -> float:
-    truncation_idx = np.random.geometric(p=truncating_proba)
+def coupled_sum_sampler(truncation_idx: int, truncating_proba) -> float:
 
     n = 2 ** truncation_idx 
-    cost = 2 ** (truncation_idx + 1) - 1
     r = 8 
     t = np.linspace(0, GBM.maturity, n + 1)
     dt = t[1:] - t[:-1]
@@ -114,9 +67,35 @@ def coupled_sum_sampler(
         dw = dw[0::2] + dw[1::2]
         
     estimator = payoffs[0] + np.sum([(payoffs[i+1] - payoffs[i]) / (1 - truncating_proba) ** i for i in range(truncation_idx)])
-    return estimator, cost
+    return estimator
 
-def monte_carlo_estimator(budget): # TODO: rethink how to use for other schemes than milstein
+
+def coupled_sum_mc(budget):
+    alpha_true = 0.104505836
+    truncating_proba = 1 - 2 ** (-3 / 2) # I am not sure about the 1-...
+    sample_cost = 0
+    sample_mean = 0
+    n_sample = 0
+    sample_std = 0.0
+    # doing coupled sum monte carlo
+    while True:
+        truncation_idx = np.random.geometric(p=truncating_proba)
+        cost = 2 ** (truncation_idx + 1) - 1
+        if sample_cost + cost > budget:
+            break
+        sample_cost += cost
+        payoff_draw = coupled_sum_sampler(truncation_idx, truncating_proba)
+        sample_mean += payoff_draw
+        n_sample += 1
+        sample_std += (payoff_draw - alpha_true) ** 2
+    sample_mean = sample_mean / n_sample
+    sample_std = np.sqrt(sample_std / n_sample)
+    
+    standard_error = sample_std / np.sqrt(n_sample)
+    
+    return sample_mean, sample_std, standard_error, sample_cost
+
+def standard_mc(budget): # TODO: rethink how to use for other schemes than milstein
     zeta = 1
     n_steps = round(budget ** (1 / (2 * zeta + 1)))
     dt = GBM.maturity / n_steps
