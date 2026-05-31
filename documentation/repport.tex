@@ -62,7 +62,31 @@ But
     &= \sum_{j=1}^{\infty}\bar{t}_jE\left[1(N\ge j)\right]\quad\text{ by Tonelli}\\
     &= \sum_{j=1}^{\infty} \bar{t}_jP(N\ge j)
 \end{align*}
-2.
+2. Since $g(\alpha F) = g(F)$,
+$$\min_F \left(\sum_{j=0}^{\infty}\frac{\beta_j}{F_j}\right)\left(\sum_{j=0}^{\infty}t_j F_j\right)$$
+is equivalent to solving
+\begin{align*}
+    &\min_F &\sum_{j=0}^{\infty}\frac{\beta_j}{F_j}\\
+    &\text{subject to } &\sum_{j=0}^{\infty}t_jF_j=C
+\end{align*}
+
+This is a constrained optimization problem so we use lagrange multipliers:
+\begin{align*}
+\mathcal{L}(F,\lambda)=\sum_{j=0}^{\infty}\frac{\beta_j}{F_j}+\lambda\left(\sum_{j=0}^{\infty}t_j F_j-C\right)\\
+\end{align*}
+
+\begin{align*}
+\frac{\partial\mathcal{L}}{\partial F_i} &= 0\\
+\frac{-\beta_i}{F_i^2}+\lambda t_i&=0\\
+F_i &= \frac{1}{\sqrt{\lambda}}\sqrt{\frac{\beta_i}{t_i}}
+\end{align*}
+In order that $F_0=1$, we need $$\frac{1}{\sqrt{\lambda}}\sqrt{\frac{\beta_0}{t_0}}=1$$
+so $\lambda = \beta_0/t_0$, i.e. $$F_i=\frac{\sqrt{\beta_i/t_i}}{\sqrt{\beta_0/t_0}}=:F^*_i.$$
+So if $F^*$ is feasible (as stated in the assumption of the quesiton) we have that
+$F^*$ satisfies the KKT conditions. Moreover, the problem is convex so $F^*$ is an optimal solution.
+
+
+
 
 3. \begin{align*}
 \|\Delta_j\|_2
