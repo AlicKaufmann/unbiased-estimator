@@ -1,0 +1,56 @@
+\documentclass{article}
+\usepackage{amsmath}
+
+\title{Unbiased estimation via randomization - Application to
+Option Pricing}
+\author{Alic Kaufmann}
+\date{31.05.2016}
+
+\begin{document}
+
+\maketitle
+(Q1)
+1.
+\begin{align*}
+    \|Y_l -Y\|_2^2
+    &= E[Y_l-Y]^2\\
+    &= E[Y_l^2 - 2Y_l Y + Y^2]\\
+    &= E[Y_l^2]-2E[Y_l]E[Y]+E[Y^2]\quad\text{ by independence of }Y_l\text{ and }Y\\
+    &\to E[Y^2]-2 E[Y]^2 + E[Y^2]\\
+    &= 2\underbrace{(E[Y^2]-E[Y]^2)}_{Var[Y]}\\
+    &=2 Var[Y] \not\to 0\quad\text{ if }Var[Y]\neq0
+\end{align*}
+
+By assumption, $N$ is almost surely finite, i.e. $$P(N=\infty)=0.$$
+
+But $$\{N\ge 1\}\supset \{N\ge 2\}\supset\{N\ge3\}\supset\ldots$$
+and  $\cap_{l\ge 1}\{N\ge l\}=\{N=\infty\}.$ so by continuity of probability,
+$$0=P(N=\infty)=\lim_{l\to\infty}P(N\ge l), $$ so for $l$ big enough
+$$\frac{\|Y_{l-1}-Y\|_2^2}{P(N\ge l)}\ge \frac{Var[Y]}{P(N\ge l)}.$$
+But since $P(N\ge l)\to0$ we have $$\frac{Var[Y]}{P(N\ge l)}\to\infty$$ so
+$$\sum_{l=1}^{\infty} \frac{\|Y_{l-1}-Y_l\|_2^2}{P(N\ge l)}=\infty$$
+2. We want to show
+
+\begin{equation}
+\frac{\|Y_{l-1}-Y\|_2^2}{P(N\ge l)}<\infty.
+\end{equation}
+By the strong order $p$ assumption and the fact that we have a geometric time step, we have
+\begin{align*}
+\frac{\|Y_{l-1}-Y\|_2^2}{P(N\ge l)}&\le \frac{\left(C\left(\frac{T}{2^{l-1}}\right)^p\right)^2}{q^l} \\
+&= \underbrace{CT^{2p}2^{2p}}_{\tilde{C}}\left(\frac{1}{2^{2p}q}\right)^l.
+\end{align*}
+In order for this geometric series to converge, we need $\frac{1}{2^{2p}q}<1$, i.e. $q>2^{-2p}.$
+
+We now procede to show that $\bar{Z}$ has finite variance.
+By definition,  $Var[\bar{Z}]=E[\bar{Z^2}]-\left[E\bar{Z}\right]^2.$ But by Jensen's inequaliy, we have
+$$E[\bar{Z}]=E[Y]\le (E[Y^2])^{1/2}<\infty\quad\text{ because }Y\in L^2(\Omega).$$
+So we just need to show $E[\bar{Z}^2]<\infty.$
+But 
+\begin{align*}
+    E[\bar{Z}^2]
+    &=\sum_{l=0}^{\infty} \frac{\bar{\nu}_l}{P(N\ge l)}\\
+    &=\sum_{l=0}^{\infty} \frac{\|Y_{l-1}-Y\|_2^2-\|Y_l-Y\|_2^2}{P(N\ge l)}\\
+    &\le\sum_{l=0}^{\infty} \frac{\|Y_{l-1}-Y\|_2^2}{P(N\ge l)}<\infty
+\end{align*}
+
+\end{document}

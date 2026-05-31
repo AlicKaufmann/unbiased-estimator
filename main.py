@@ -5,6 +5,8 @@ from numpy.typing import ArrayLike
 
 from config import GBM, CIR
 
+ALPHA_TRUE = 0.104505836
+
 np.random.seed(50)
 
 def main():
@@ -25,16 +27,35 @@ def main():
 
     # v_maturity = z_maturity ** 2
     
-
-
     budgets = np.array([20_000, 100_000, 500_000])
-    means, stds, sdes, costs = [np.empty_like(budgets, dtype=float) for _ in range(4)]
-    for i, budget in enumerate(budgets):
-        mean, std, sde, cost = coupled_sum_mc(budget)
-        means[i] = mean
-        stds[i] = std
-        sdes[i] = sde
-        costs[i] = cost
+    R = 10
+    results = np.array([[coupled_sum_mc(budget) for _ in range(R)] for budget in budgets])
+    means, stds, sdes, costs, n_samples = results.transpose(2, 0, 1)
+    mean_across_runs = means.mean(axis=1)   # shape: (len(budgets),)
+    empirical_bias = mean_across_runs - ALPHA_TRUE
+    std_across_runs  = means.std(axis=1)
+    se_across_runs   = sdes.mean(axis=1)
+    avg_work_per_replicate = costs / n_samples   # shape: (len(budgets), R)
+    work_variance = (avg_work_per_replicate * stds ** 2).mean(axis=1)
+
+    ci_left  = mean_across_runs - 1.96 * se_across_runs
+    ci_right = mean_across_runs + 1.96 * se_across_runs
+    rmse = np.sqrt(((means - ALPHA_TRUE) ** 2).mean(axis=1))  # shape: (len(budgets),)
+
+
+    # for i, budget in enumerate(budgets):
+    #     mean, std, sde, cost = coupled_sum_mc(budget)
+    #     means[i] = mean
+    #     stds[i] = std
+    #     sdes[i] = sde
+    #     costs[i] = cost
+    #     mean = 0.0
+    #     std_ = 0.0
+    #     for r in range(R):
+    #         mean_, std_, _, _ = coupled_sum_mc(budget)
+    #         mean_ 
+            
+        
         
     plt.errorbar(budgets, means, sdes)
     plt.show()
@@ -71,7 +92,6 @@ def coupled_sum_sampler(truncation_idx: int, truncating_proba) -> float:
 
 
 def coupled_sum_mc(budget):
-    alpha_true = 0.104505836
     truncating_proba = 1 - 2 ** (-3 / 2) # I am not sure about the 1-...
     sample_cost = 0
     sample_mean = 0
@@ -87,13 +107,13 @@ def coupled_sum_mc(budget):
         payoff_draw = coupled_sum_sampler(truncation_idx, truncating_proba)
         sample_mean += payoff_draw
         n_sample += 1
-        sample_std += (payoff_draw - alpha_true) ** 2
+        sample_std += (payoff_draw - ALPHA_TRUE) ** 2
     sample_mean = sample_mean / n_sample
     sample_std = np.sqrt(sample_std / n_sample)
     
     standard_error = sample_std / np.sqrt(n_sample)
     
-    return sample_mean, sample_std, standard_error, sample_cost
+    return sample_mean, sample_std, standard_error, sample_cost, n_sample
 
 def standard_mc(budget): # TODO: rethink how to use for other schemes than milstein
     zeta = 1
