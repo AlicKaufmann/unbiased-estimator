@@ -31,7 +31,7 @@ But since $P(N\ge l)\to0$ we have $$\frac{Var[Y]}{P(N\ge l)}\to\infty$$ so
 $$\sum_{l=1}^{\infty} \frac{\|Y_{l-1}-Y_l\|_2^2}{P(N\ge l)}=\infty$$
 2. We want to show
 
-\begin{equation}
+\begin{equation}\label{dummy}
 \frac{\|Y_{l-1}-Y\|_2^2}{P(N\ge l)}<\infty.
 \end{equation}
 By the strong order $p$ assumption and the fact that we have a geometric time step, we have
@@ -50,7 +50,55 @@ But
     E[\bar{Z}^2]
     &=\sum_{l=0}^{\infty} \frac{\bar{\nu}_l}{P(N\ge l)}\\
     &=\sum_{l=0}^{\infty} \frac{\|Y_{l-1}-Y\|_2^2-\|Y_l-Y\|_2^2}{P(N\ge l)}\\
-    &\le\sum_{l=0}^{\infty} \frac{\|Y_{l-1}-Y\|_2^2}{P(N\ge l)}<\infty
+    &\le\sum_{l=0}^{\infty} \frac{\|Y_{l-1}-Y\|_2^2}{P(N\ge l)}<\infty\quad\text{ by }\ref{dummy}
 \end{align*}
 
+(Q2)
+1.
+\begin{align*}
+    E[\bar{\tau}]\\
+    &= E\left[\sum_{j=1}^N \bar{t}_j\right]\\
+    &= E\left[\sum_{j=1}^{\infty}\bar{t}_j1(N\ge j)\right]\\
+    &= \sum_{j=1}^{\infty}\bar{t}_jE\left[1(N\ge j)\right]\quad\text{ by Tonelli}\\
+    &= \sum_{j=1}^{\infty} \bar{t}_jP(N\ge j)
+\end{align*}
+2.
+
+3. \begin{align*}
+\|\Delta_j\|_2
+&=\|Y_j-Y_{j-1}\|\\
+&\le \underbrace{\|Y_j - Y\|_2}_{C2^{-pj}} + \underbrace{\|Y-Y_{j-1}\|_2}_{C2^{-p(j-1)}}\\
+&\le (C + C2^p)2^{-pj}
+\end{align*}
+so
+\begin{align*}
+E\left[\Delta_j^2\right]&=\|\Delta_j\|_2^2\\
+&=\underbrace{\left(C + C2^p\right)^2}_{\tilde{C}} 2^{-2pj}\\
+&=O(2^{-2pj})
+\end{align*}
+4.In order to get the best balance between the variance and the cost, we note that we need
+to consider the optimal $F^*_j=P(N\ge j)$.
+
+We know $F^*_j \sim \sqrt{\frac{\nu_j}{t_j}} \sim \sqrt{\frac{2^{-2pj}}{2^j}}=2^{-j(p+\frac12)}$.
+Since we assumed that the survival distribution is of the form $P(N\ge l)=2^{-rl}$,
+we have $r^*=p + \frac12$ is balancing the variance and the cost.
+
+Lets the conditions for $E[\bar{\tau}]$ and $Var[\bar{Z}]$ to be finite.
+\begin{align*}
+    E[\bar{\tau}]
+    &= \sum_{j=0}^{\infty} t_j P(N\ge j)\\
+    &\le \sum_{j=0}^{\infty}c2^j2^{-rj}\\
+    &= \sum_{j=0}^{\infty}C 2^{j(1-r)}
+\end{align*}
+In order for the series to converge, we need $j(1-r)<0$, i.e. $r>1$.
+
+By the same argument as in (Q1.2), $Var[\bar{Z}]<\infty$ is equivalent to $E\left[\bar{Z}^2\right]<\infty$.
+But 
+\begin{align*}
+    E[\bar{Z}^2]
+    &= \sum_{l=0}^{\infty}\frac{\bar{\nu}_l}{P(N\ge l)}\\
+    &= \sum_{l=0}^{\infty}\frac{C2^{-2pj}}{2^{-rj}}\\
+    &= \sum_{l=0}^{\infty}C 2^{j(r-2p)}
+\end{align*}
+and in order for the series to converge, we need $j(r-2p)<0$, i.e. $r<2p$.
 \end{document}
