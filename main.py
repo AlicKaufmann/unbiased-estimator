@@ -42,20 +42,6 @@ def main():
     ci_right = mean_across_runs + 1.96 * se_across_runs
     rmse = np.sqrt(((means - ALPHA_TRUE) ** 2).mean(axis=1))  # shape: (len(budgets),)
 
-
-    # for i, budget in enumerate(budgets):
-    #     mean, std, sde, cost = coupled_sum_mc(budget)
-    #     means[i] = mean
-    #     stds[i] = std
-    #     sdes[i] = sde
-    #     costs[i] = cost
-    #     mean = 0.0
-    #     std_ = 0.0
-    #     for r in range(R):
-    #         mean_, std_, _, _ = coupled_sum_mc(budget)
-    #         mean_ 
-            
-        
         
     plt.errorbar(budgets, means, sdes)
     plt.show()

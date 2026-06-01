@@ -1,5 +1,7 @@
 \documentclass{article}
 \usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{bbm}
 
 \title{Unbiased estimation via randomization - Application to
 Option Pricing}
@@ -58,17 +60,23 @@ But
 \begin{align*}
     E[\bar{\tau}]\\
     &= E\left[\sum_{j=1}^N \bar{t}_j\right]\\
-    &= E\left[\sum_{j=1}^{\infty}\bar{t}_j1(N\ge j)\right]\\
-    &= \sum_{j=1}^{\infty}\bar{t}_jE\left[1(N\ge j)\right]\quad\text{ by Tonelli}\\
+    &= E\left[\sum_{j=1}^{\infty}\bar{t}_j\mathbbm{1}(N\ge j)\right]\\
+    &= \sum_{j=1}^{\infty}\bar{t}_jE\left[\mathbbm{1}(N\ge j)\right]\quad\text{ by Tonelli}\\
     &= \sum_{j=1}^{\infty} \bar{t}_jP(N\ge j)
 \end{align*}
 2. Since $g(\alpha F) = g(F)$,
-$$\min_F \left(\sum_{j=0}^{\infty}\frac{\beta_j}{F_j}\right)\left(\sum_{j=0}^{\infty}t_j F_j\right)$$
+$$\min_F \underbrace{\left(\sum_{j=0}^{\infty}\frac{\beta_j}{F_j}\right)}_{:=A(F)}\underbrace{\left(\sum_{j=0}^{\infty}t_j F_j\right)}_{:=B(F)}$$
 is equivalent to solving
 \begin{align*}
     &\min_F &\sum_{j=0}^{\infty}\frac{\beta_j}{F_j}\\
     &\text{subject to } &\sum_{j=0}^{\infty}t_jF_j=C
 \end{align*}
+
+indeed if $F^*$ is a miimizer of $A(F)B(F)$, then $F^*$ is a minimizer of
+$$\min_F A(F)\text{ s.t. } B(F)=\underbrace{B(F^*)}_{:=C}$$. Indeed, if this is not
+the case, there exists $\hat{F}$ such that $A(\hat{F})<A(F^*$) with
+$A(\hat{F})=A(F^*)$. But then $A(\hat{F})B(\hat{F})<A(F^*)B(F^*)$ which
+contradicts optimality of $F^*$.
 
 This is a constrained optimization problem so we use lagrange multipliers:
 \begin{align*}
@@ -83,7 +91,7 @@ F_i &= \frac{1}{\sqrt{\lambda}}\sqrt{\frac{\beta_i}{t_i}}
 In order that $F_0=1$, we need $$\frac{1}{\sqrt{\lambda}}\sqrt{\frac{\beta_0}{t_0}}=1$$
 so $\lambda = \beta_0/t_0$, i.e. $$F_i=\frac{\sqrt{\beta_i/t_i}}{\sqrt{\beta_0/t_0}}=:F^*_i.$$
 So if $F^*$ is feasible (as stated in the assumption of the quesiton) we have that
-$F^*$ satisfies the KKT conditions. Moreover, the problem is convex so $F^*$ is an optimal solution.
+$F^*$ satisfies the KKT conditions. Moreover, the problem is strictly convex so $F^*$ is the unique optimal solution.
 
 
 
@@ -103,7 +111,7 @@ E\left[\Delta_j^2\right]&=\|\Delta_j\|_2^2\\
 4.In order to get the best balance between the variance and the cost, we note that we need
 to consider the optimal $F^*_j=P(N\ge j)$.
 
-We know $F^*_j \sim \sqrt{\frac{\nu_j}{t_j}} \sim \sqrt{\frac{2^{-2pj}}{2^j}}=2^{-j(p+\frac12)}$.
+We know $F^*_j \propto \sqrt{\frac{\nu_j}{t_j}} \propto \sqrt{\frac{2^{-2pj}}{2^j}}=2^{-j(p+\frac12)}$.
 Since we assumed that the survival distribution is of the form $P(N\ge l)=2^{-rl}$,
 we have $r^*=p + \frac12$ is balancing the variance and the cost.
 
@@ -125,4 +133,83 @@ But
     &= \sum_{l=0}^{\infty}C 2^{j(r-2p)}
 \end{align*}
 and in order for the series to converge, we need $j(r-2p)<0$, i.e. $r<2p$.
+
+(Q4)
+1. Suppose by contradiction that there is a path with $\tau_{\epsilon}<\infty$. Then by continuity of
+$V_t$ there is a time where $V_t$ first crosses $0$. At this point
+the process reads $dV_t = \kappa\theta > 0$ which pushes the
+process back to a positive value. So the process can never be
+negative. But then the original process is also always positive.
+
+2. The idea is to find a Lyapunov function $f(x)$ which explodes
+when $x\to\infty$, for example $f(x)=x^{-m}$. In order to derive the
+dynamics of $f(V_t)$ we use Itô's formula:
+$$df(V_t) = f'(V_t)dV_t +\frac12 f''(V_t)\underbrace{d\langle V\rangle_t}_{\sigma^2 V_tdt}$$
+with
+\begin{align*}
+    f'(x) &= - m x^{-m-1}\\
+    f''(x) &= m(m+1)x^{-m-2}
+\end{align*}
+
+So we have
+
+\begin{align*}
+    df(V_t) 
+    &= -mV_t^{-m-1}dV_t +\frac12 m(m+1)V_t^{-m-2} \sigma^2V_tdt\\
+    &= -mV_t^{-m-1}\kappa (\theta - V_t)dt - mV_t^{-m-1}\sigma \sqrt{V_t}dB_t + \frac12 m(m+1)V_t^{-m-1}\sigma^2dt\\
+    &= \left[-m V_t^{-m-1}\kappa(\theta -V_t) + \frac12 m(m+1)V_t^{-m-1}\sigma^2\right]dt - mV_t^{-m-1}\sigma\sqrt{V_t}dB_t\\
+    &= mkV_t^{-m}dt -mV_t^{-m-\frac12}\sigma dB_t
+\end{align*}
+
+where in the last line we set $m=2\kappa\theta/\sigma^2-1$ in order to simplify
+the expression.
+
+Now it is important to note that we cannot apply Itô on all of $[0,t]$ because
+$V_t^{-m}$ blows up if $V_t$ hits $0$. But we can write Itôs's formula
+for the stopped process $$V_{t\wedge\tau_{\epsilon}}\quad\text{where }\tau_{\epsilon}=\inf\{t: V_t\le\epsilon\}.$$
+We obtain $$V_{t\wedge\tau_{\epsilon}}^{-m}=V_0^{-m} + \int_0^t m\kappa V_{s\wedge\tau_{\epsilon}}^{-m}ds - \int_0^t m V_{s\wedge\tau_{\epsilon}}^{-m-1/2}\sigma dB_s.$$
+Now taking expectation, the term with the brownian motion disapears because it is a 
+martingale since $$E[\int_0^{t\wedge\tau_{\epsilon}} V_s^{-2(m+1/2}ds] \le \epsilon^{-2m-1}t<\infty$$
+so $$E[V_{s\wedge\tau_{\epsilon}}^{-m}]=V_0^{-m} + mk\int_0^{t}E[V_{s\wedge\tau_{\epsilon}}^{-m}]ds$$ where
+we passed the expectation inside the integral using Tonelli's theorem.
+By Grönwall's inequality, we then get $$E[V_{s\wedge\tau_{\epsilon}}^{-m}]\le V_0^{-m}e^{mkt}.$$
+
+Now note
+\begin{align*}
+    P(\tau_{\epsilon}<t) 
+    &= P(V_{s\wedge\tau_{\epsilon}}^{-m}\ge\epsilon^{-m})\\
+    &le E[V_{s\wedge\tau_{\epsilon}}^{-m}]\quad\text{Markov's inequality}\\
+    \le V_0^{-m}e^{m\kappa t}\epsilon^m.
+\end{align*}
+
+We now have to show $$P(V_t>0\forall t\in [0,T])=1.$$
+This is because
+\begin{align*}
+    P(\exists t\in[0,T]: V_t\le 0)
+    &\le P(\tau_{\epsilon}\le T)\\
+    &\le V_0^{-m}e^{m\kappa T}\epsilon^m \to 0\quad\text{when }\epsilon\to0
+\end{align*}
+
+So $$P(\exists t\in[0,T: V_t\le0)=0$$ and thus $$P(V_t>0\forall t\in[0,T])=1$$ 
+
+3. Again, we use Itô's formula with
+\begin{align*}
+g(x) &= x^{1/2}\\
+g'(x) &= \frac12 x^{-1/2}\\
+g''(x) &= -\frac14 x^{-3/2}
+\end{align*}
+
+because $$Z_t = \sqrt{V_t} = g(V_t)$$.
+We get
+\begin{align*}
+    dZ_t
+    &= dg(V_t)\\
+    &= g'(V_t)dV_t +\frac12 g''(V_t)\underbrace{d\langle V \rangle_t}_{\sigma^2 V_t dt}\\
+    &= \frac12 V_t^{-1/2}dV_t -\frac18 V_t^{-3/2} \sigma^2 V_t dt\\
+    &=\frac12 V_t^{-1/2}\kappa(\theta-V_t)dt +\frac12 V_t^{-1/2}\sigma V_t^{1/2}dB_t -\frac18 V_t^{-1/2}\sigma^2dt\\
+    &= V_t^{-1/2}\left[\frac12 \kappa(\theta-V_t)-\frac18\sigma^2\right]dt + \frac12\sigma dB_t\\
+    &= \left[\frac12\kappa(\theta V_t^{-1/2}- V_t^{1/2})-\frac18\sigma^2 V_t^{-1/2}\right]dt +\frac12\sigma dB_t\\
+    &= \frac12\kappa \left[\left(\theta-\frac{\sigma^2}{4\kappa}\right)Z_t^{-1}-Z_t\right]dt +\frac12 \sigma dB_t
+\end{align*}
+
 \end{document}
