@@ -2,6 +2,9 @@
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{bbm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{float}
 
 \title{Unbiased estimation via randomization - Application to
 Option Pricing}
@@ -43,8 +46,8 @@ By the strong order $p$ assumption and the fact that we have a geometric time st
 \end{align*}
 In order for this geometric series to converge, we need $\frac{1}{2^{2p}q}<1$, i.e. $q>2^{-2p}.$
 
-We now procede to show that $\bar{Z}$ has finite variance.
-By definition,  $Var[\bar{Z}]=E[\bar{Z^2}]-\left[E\bar{Z}\right]^2.$ But by Jensen's inequaliy, we have
+We now proceed to show that $\bar{Z}$ has finite variance.
+By definition,  $Var[\bar{Z}]=E[\bar{Z^2}]-\left[E\bar{Z}\right]^2.$ But by Jensen's inequality, we have
 $$E[\bar{Z}]=E[Y]\le (E[Y^2])^{1/2}<\infty\quad\text{ because }Y\in L^2(\Omega).$$
 So we just need to show $E[\bar{Z}^2]<\infty.$
 But 
@@ -72,13 +75,13 @@ is equivalent to solving
     &\text{subject to } &\sum_{j=0}^{\infty}t_jF_j=C
 \end{align*}
 
-indeed if $F^*$ is a miimizer of $A(F)B(F)$, then $F^*$ is a minimizer of
+indeed if $F^*$ is a minimizer of $A(F)B(F)$, then $F^*$ is a minimizer of
 $$\min_F A(F)\text{ s.t. } B(F)=\underbrace{B(F^*)}_{:=C}$$. Indeed, if this is not
 the case, there exists $\hat{F}$ such that $A(\hat{F})<A(F^*$) with
 $A(\hat{F})=A(F^*)$. But then $A(\hat{F})B(\hat{F})<A(F^*)B(F^*)$ which
 contradicts optimality of $F^*$.
 
-This is a constrained optimization problem so we use lagrange multipliers:
+This is a constrained optimization problem so we use Lagrange multipliers:
 \begin{align*}
 \mathcal{L}(F,\lambda)=\sum_{j=0}^{\infty}\frac{\beta_j}{F_j}+\lambda\left(\sum_{j=0}^{\infty}t_j F_j-C\right)\\
 \end{align*}
@@ -90,7 +93,7 @@ F_i &= \frac{1}{\sqrt{\lambda}}\sqrt{\frac{\beta_i}{t_i}}
 \end{align*}
 In order that $F_0=1$, we need $$\frac{1}{\sqrt{\lambda}}\sqrt{\frac{\beta_0}{t_0}}=1$$
 so $\lambda = \beta_0/t_0$, i.e. $$F_i=\frac{\sqrt{\beta_i/t_i}}{\sqrt{\beta_0/t_0}}=:F^*_i.$$
-So if $F^*$ is feasible (as stated in the assumption of the quesiton) we have that
+So if $F^*$ is feasible (as stated in the assumption of the question) we have that
 $F^*$ satisfies the KKT conditions. Moreover, the problem is strictly convex so $F^*$ is the unique optimal solution.
 
 
@@ -115,7 +118,7 @@ We know $F^*_j \propto \sqrt{\frac{\nu_j}{t_j}} \propto \sqrt{\frac{2^{-2pj}}{2^
 Since we assumed that the survival distribution is of the form $P(N\ge l)=2^{-rl}$,
 we have $r^*=p + \frac12$ is balancing the variance and the cost.
 
-Lets the conditions for $E[\bar{\tau}]$ and $Var[\bar{Z}]$ to be finite.
+Let us determine the conditions for $E[\bar{\tau}]$ and $Var[\bar{Z}]$ to be finite.
 \begin{align*}
     E[\bar{\tau}]
     &= \sum_{j=0}^{\infty} t_j P(N\ge j)\\
@@ -134,6 +137,101 @@ But
 \end{align*}
 and in order for the series to converge, we need $j(r-2p)<0$, i.e. $r<2p$.
 
+(Q3)
+
+\subsection*{Q3.2 -- Coupled-sum estimator}
+
+We implement the coupled-sum unbiased estimator~(4) using the Milstein scheme for the GBM
+dynamics~(15), with truncation level $N$ drawn from a geometric distribution
+$\mathbb{P}(N\ge\ell)=q^\ell$ and $q=2^{-3/2}$ (the optimal rate from Q2.4 with strong order $p=1$).
+The results over $R=10$ independent runs are reported in Table~\ref{tab:q32} for budgets
+$c\in\{20\,000,\,100\,000,\,500\,000\}$.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{rccccl}
+\toprule
+Budget & Mean & Variance & Bias & RMSE & 95\% CI \\
+\midrule
+ 20\,000 & 0.105445 & $2.22\times10^{-2}$ & $9.39\times10^{-4}$ & $3.56\times10^{-3}$ & $[0.09974,\;0.11115]$ \\
+100\,000 & 0.104987 & $2.20\times10^{-2}$ & $4.81\times10^{-4}$ & $1.32\times10^{-3}$ & $[0.10232,\;0.10766]$ \\
+500\,000 & 0.104607 & $2.18\times10^{-2}$ & $1.02\times10^{-4}$ & $8.25\times10^{-4}$ & $[0.10346,\;0.10575]$ \\
+\bottomrule
+\end{tabular}
+\caption{Coupled-sum estimator results (true value $\alpha=0.104506$, $R=10$ runs).}
+\label{tab:q32}
+\end{table}
+
+The estimator is unbiased: the empirical bias is negligible at all budgets and decreases
+with the budget. The RMSE and CI width both shrink roughly as $c^{-1/2}$, consistent with
+the central limit theorem~(9).
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{q32_coupled_sum.pdf}
+  \caption{Left: estimated mean with 95\% CI as a function of budget. Right: RMSE vs budget.}
+  \label{fig:q32}
+\end{figure}
+
+\subsection*{Q3.3 -- Comparison with standard Monte Carlo}
+
+We compare the coupled-sum and standard MC estimators at the same budgets.
+For standard MC we balance discretization and statistical errors by choosing
+$h\approx c^{-1/3}$ and $N\approx c^{2/3}$ (weak order $\zeta=1$ for Milstein).
+Results are reported in Tables~\ref{tab:q33cs} and~\ref{tab:q33smc}.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{rcccccl}
+\toprule
+Budget & Mean & Variance & Bias & RMSE & Work$\times$Var & 95\% CI \\
+\midrule
+ 20\,000 & 0.104539 & $2.18\times10^{-2}$ & $3.3\times10^{-5}$ & $2.41\times10^{-3}$ & $1.72\times10^{-1}$ & $[0.09877,\;0.11031]$ \\
+100\,000 & 0.104194 & $2.17\times10^{-2}$ & $-3.1\times10^{-4}$ & $1.66\times10^{-3}$ & $1.73\times10^{-1}$ & $[0.10162,\;0.10677]$ \\
+500\,000 & 0.104688 & $2.19\times10^{-2}$ & $1.8\times10^{-4}$ & $4.34\times10^{-4}$ & $1.68\times10^{-1}$ & $[0.10355,\;0.10582]$ \\
+\bottomrule
+\end{tabular}
+\caption{Coupled-sum estimator ($R=10$ runs).}
+\label{tab:q33cs}
+\end{table}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{rcccccl}
+\toprule
+Budget & Mean & Variance & Bias & RMSE & Work$\times$Var & 95\% CI \\
+\midrule
+ 20\,000 & 0.102961 & $2.06\times10^{-2}$ & $-1.54\times10^{-3}$ & $5.38\times10^{-3}$ & $5.57\times10^{-1}$ & $[0.09260,\;0.11332]$ \\
+100\,000 & 0.105194 & $2.16\times10^{-2}$ & $6.9\times10^{-4}$ & $2.33\times10^{-3}$ & $9.92\times10^{-1}$ & $[0.09899,\;0.11140]$ \\
+500\,000 & 0.105549 & $2.19\times10^{-2}$ & $1.04\times10^{-3}$ & $2.23\times10^{-3}$ & $1.73\times10^{0}$ & $[0.10189,\;0.10921]$ \\
+\bottomrule
+\end{tabular}
+\caption{Standard MC estimator ($R=10$ runs).}
+\label{tab:q33smc}
+\end{table}
+
+Several observations follow from these results.
+\begin{itemize}
+  \item \textbf{Bias.} The coupled-sum estimator is unbiased by construction; its empirical bias
+    is negligible at all budgets. Standard MC retains a persistent discretization bias of order
+    $10^{-3}$, visible even at budget $500\,000$, which causes the RMSE to plateau rather than
+    decrease proportionally to $c^{-1/2}$.
+  \item \textbf{Work--variance product.} For the coupled-sum estimator, $\mathbb{E}[\bar\tau]\cdot\mathrm{Var}(\bar Z)$
+    stays roughly constant ($\approx 0.17$) across budgets, consistent with the asymptotic
+    result~(9). For standard MC it grows as $c^{1/3}$: at budget $500\,000$ it is an order of
+    magnitude larger, confirming the superior asymptotic efficiency of the coupled-sum estimator.
+  \item \textbf{Confidence intervals.} At budget $500\,000$ the coupled-sum CI width is roughly
+    half that of standard MC, reflecting its lower RMSE.
+\end{itemize}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{q33_comparison.pdf}
+  \caption{Left: mean with 95\% CI. Centre: RMSE vs budget. Right: work--variance product.
+    Coupled-sum (circles) vs standard MC (squares).}
+  \label{fig:q33}
+\end{figure}
+
 (Q4)
 1. Suppose by contradiction that there is a path with $\tau_{\epsilon}<\infty$. Then by continuity of
 $V_t$ there is a time where $V_t$ first crosses $0$. At this point
@@ -142,7 +240,7 @@ process back to a positive value. So the process can never be
 negative. But then the original process is also always positive.
 
 2. The idea is to find a Lyapunov function $f(x)$ which explodes
-when $x\to\infty$, for example $f(x)=x^{-m}$. In order to derive the
+when $x\to 0$, for example $f(x)=x^{-m}$. In order to derive the
 dynamics of $f(V_t)$ we use Itô's formula:
 $$df(V_t) = f'(V_t)dV_t +\frac12 f''(V_t)\underbrace{d\langle V\rangle_t}_{\sigma^2 V_tdt}$$
 with
@@ -157,7 +255,8 @@ So we have
     df(V_t) 
     &= -mV_t^{-m-1}dV_t +\frac12 m(m+1)V_t^{-m-2} \sigma^2V_tdt\\
     &= -mV_t^{-m-1}\kappa (\theta - V_t)dt - mV_t^{-m-1}\sigma \sqrt{V_t}dB_t + \frac12 m(m+1)V_t^{-m-1}\sigma^2dt\\
-    &= \left[-m V_t^{-m-1}\kappa(\theta -V_t) + \frac12 m(m+1)V_t^{-m-1}\sigma^2\right]dt - mV_t^{-m-1}\sigma\sqrt{V_t}dB_t\\
+    &= \left[-m V_t^{-m-1}\kappa(\theta -V_t) + \tfrac12 m(m+1)V_t^{-m-1}\sigma^2\right]dt\\
+    &\quad - mV_t^{-m-1}\sigma\sqrt{V_t}\,dB_t\\
     &= mkV_t^{-m}dt -mV_t^{-m-\frac12}\sigma dB_t
 \end{align*}
 
@@ -165,10 +264,10 @@ where in the last line we set $m=2\kappa\theta/\sigma^2-1$ in order to simplify
 the expression.
 
 Now it is important to note that we cannot apply Itô on all of $[0,t]$ because
-$V_t^{-m}$ blows up if $V_t$ hits $0$. But we can write Itôs's formula
+$V_t^{-m}$ blows up if $V_t$ hits $0$. But we can write Itô's formula
 for the stopped process $$V_{t\wedge\tau_{\epsilon}}\quad\text{where }\tau_{\epsilon}=\inf\{t: V_t\le\epsilon\}.$$
 We obtain $$V_{t\wedge\tau_{\epsilon}}^{-m}=V_0^{-m} + \int_0^t m\kappa V_{s\wedge\tau_{\epsilon}}^{-m}ds - \int_0^t m V_{s\wedge\tau_{\epsilon}}^{-m-1/2}\sigma dB_s.$$
-Now taking expectation, the term with the brownian motion disapears because it is a 
+Now taking expectation, the term with the Brownian motion disappears because it is a
 martingale since $$E[\int_0^{t\wedge\tau_{\epsilon}} V_s^{-2(m+1/2}ds] \le \epsilon^{-2m-1}t<\infty$$
 so $$E[V_{s\wedge\tau_{\epsilon}}^{-m}]=V_0^{-m} + mk\int_0^{t}E[V_{s\wedge\tau_{\epsilon}}^{-m}]ds$$ where
 we passed the expectation inside the integral using Tonelli's theorem.
@@ -211,5 +310,64 @@ We get
     &= \left[\frac12\kappa(\theta V_t^{-1/2}- V_t^{1/2})-\frac18\sigma^2 V_t^{-1/2}\right]dt +\frac12\sigma dB_t\\
     &= \frac12\kappa \left[\left(\theta-\frac{\sigma^2}{4\kappa}\right)Z_t^{-1}-Z_t\right]dt +\frac12 \sigma dB_t
 \end{align*}
+
+(Q5)
+
+\subsection*{Q5.2 -- Option pricing under the CIR model}
+
+We consider a European call-type payoff $Y=\varphi(V_T)$ with
+$\varphi(v)=e^{-\mu T}(v-K)^+$, $\mu=0.05$, $K=0.25$, discretized with the
+drift-implicit Milstein scheme~(25).
+Since no analytical formula is available, we estimate the reference value using a
+large-budget ($c=5\,000\,000$) coupled-sum run, giving $\alpha_{\mathrm{ref}}\approx 0.006370$.
+Tables~\ref{tab:q52cs} and~\ref{tab:q52smc} report results over $R=10$ runs for
+budgets $c\in\{1\,000,\,10\,000,\,50\,000\}$.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{rcccccl}
+\toprule
+Budget & Mean & Variance & Bias & RMSE & Work$\times$Var & 95\% CI \\
+\midrule
+  1\,000 & 0.007449 & $2.18\times10^{-3}$ & $1.08\times10^{-3}$ & $4.38\times10^{-3}$ & $1.52\times10^{-2}$ & $[0.000383,\;0.014516]$ \\
+ 10\,000 & 0.006910 & $1.83\times10^{-3}$ & $5.40\times10^{-4}$ & $9.91\times10^{-4}$ & $1.38\times10^{-2}$ & $[0.004630,\;0.009190]$ \\
+ 50\,000 & 0.006080 & $1.61\times10^{-3}$ & $-2.90\times10^{-4}$ & $5.09\times10^{-4}$ & $1.32\times10^{-2}$ & $[0.005087,\;0.007073]$ \\
+\bottomrule
+\end{tabular}
+\caption{CIR coupled-sum estimator ($R=10$ runs, reference $\alpha_{\mathrm{ref}}\approx 0.006370$).}
+\label{tab:q52cs}
+\end{table}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{rcccccl}
+\toprule
+Budget & Mean & Variance & Bias & RMSE & Work$\times$Var & 95\% CI \\
+\midrule
+  1\,000 & 0.005696 & $5.18\times10^{-4}$ & $-6.75\times10^{-4}$ & $2.78\times10^{-3}$ & $5.18\times10^{-3}$ & $[0.001472,\;0.009920]$ \\
+ 10\,000 & 0.006265 & $7.40\times10^{-4}$ & $-1.05\times10^{-4}$ & $1.04\times10^{-3}$ & $1.63\times10^{-2}$ & $[0.003809,\;0.008722]$ \\
+ 50\,000 & 0.005976 & $7.42\times10^{-4}$ & $-3.94\times10^{-4}$ & $5.46\times10^{-4}$ & $2.74\times10^{-2}$ & $[0.004532,\;0.007420]$ \\
+\bottomrule
+\end{tabular}
+\caption{CIR standard MC estimator ($R=10$ runs).}
+\label{tab:q52smc}
+\end{table}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{q52_cir_comparison.pdf}
+  \caption{CIR option pricing. Left: mean with 95\% CI. Centre: RMSE vs budget.
+    Right: work--variance product. Coupled-sum (circles) vs standard MC (squares).}
+  \label{fig:q52}
+\end{figure}
+
+The qualitative picture mirrors the GBM case. The coupled-sum estimator remains unbiased
+while standard MC retains a persistent discretization bias. A key difference is that both
+methods now have comparable work--variance products at small budgets: at $c=1\,000$ the
+coupled-sum product ($1.52\times10^{-2}$) is slightly larger than standard MC
+($5.18\times10^{-3}$), reflecting the overhead of the multilevel correction at very small
+budgets. At larger budgets ($c=50\,000$) the trend reverses: the work--variance product of
+standard MC grows as $c^{1/3}$ while that of the coupled-sum stays roughly constant,
+confirming the superior asymptotic efficiency of the unbiased estimator.
 
 \end{document}

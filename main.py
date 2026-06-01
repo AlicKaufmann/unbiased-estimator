@@ -10,63 +10,70 @@ ALPHA_TRUE = 0.104505836
 np.random.seed(50)
 
 def main():
-
-
     coupled_sum_study()
-    comparison_study()
+
+    gbm_ref = ALPHA_TRUE
+    comparison_study(
+        budgets=np.array([20_000, 100_000, 500_000]),
+        x0=GBM.s0, maturity=GBM.maturity,
+        scheme=milstein_gbm, test_fn=european,
+        true_val=gbm_ref, title='GBM',
+    )
 
     drift_implicit_study_strong_order()
     plot_cir_trajectories()
 
+    cir_ref, _, _, _, _ = coupled_sum_mc(5_000_000, CIR.v0, CIR.maturity, milstein_cir_scheme, cir_european)
+    comparison_study(
+        budgets=np.array([1_000, 10_000, 50_000]),
+        x0=CIR.v0, maturity=CIR.maturity,
+        scheme=milstein_cir_scheme, test_fn=cir_european,
+        true_val=cir_ref, title='CIR',
+    )
+
     print("end of main")
 
-def coupled_sum_sampler(truncation_idx: int, truncating_proba) -> float:
-
-    n = 2 ** truncation_idx 
-    r = 8 
-    t = np.linspace(0, GBM.maturity, n + 1)
+def coupled_sum_sampler(truncation_idx: int, truncating_proba, x0, maturity, scheme, test_fn) -> float:
+    n = 2 ** truncation_idx
+    t = np.linspace(0, maturity, n + 1)
     dt = t[1:] - t[:-1]
     dw = np.random.normal(loc=0, scale=np.sqrt(dt), size=n)
     payoffs = np.empty(truncation_idx + 1)
 
     for i in range(truncation_idx, -1, -1):
-        s_maturity = milstein_gbm(GBM.s0, dt, dw)
-        payoffs[i] = european(s_maturity)
+        payoffs[i] = test_fn(scheme(x0, dt, dw))
         dt = dt[0::2] + dt[1::2]
         dw = dw[0::2] + dw[1::2]
-        
+
     estimator = payoffs[0] + np.sum([(payoffs[i+1] - payoffs[i]) / (1 - truncating_proba) ** i for i in range(truncation_idx)])
     return estimator
 
 
-def coupled_sum_mc(budget):
-    truncating_proba = 1 - 2 ** (-3 / 2) # I am not sure about the 1-...
+def coupled_sum_mc(budget, x0, maturity, scheme, test_fn):
+    truncating_proba = 1 - 2 ** (-3 / 2)
     sample_cost = 0
-    sample_mean = 0
     n_sample = 0
-    sample_std = 0.0
-    # doing coupled sum monte carlo
+    mean = 0.0
+    M2 = 0.0
     while True:
         truncation_idx = np.random.geometric(p=truncating_proba)
         cost = 2 ** (truncation_idx + 1) - 1
         if sample_cost + cost > budget:
             break
         sample_cost += cost
-        payoff_draw = coupled_sum_sampler(truncation_idx, truncating_proba)
-        sample_mean += payoff_draw
+        draw = coupled_sum_sampler(truncation_idx, truncating_proba, x0, maturity, scheme, test_fn)
         n_sample += 1
-        sample_std += (payoff_draw - ALPHA_TRUE) ** 2
-    sample_mean = sample_mean / n_sample
-    sample_std = np.sqrt(sample_std / n_sample)
-    
-    standard_error = sample_std / np.sqrt(n_sample)
-    
-    return sample_mean, sample_std, standard_error, sample_cost, n_sample
+        delta = draw - mean
+        mean += delta / n_sample
+        M2 += delta * (draw - mean)
+    std = np.sqrt(M2 / n_sample)
+    se = std / np.sqrt(n_sample)
+    return mean, std, se, sample_cost, n_sample
 
 def coupled_sum_study():
     budgets = np.array([20_000, 100_000, 500_000])
     R = 10
-    results = np.array([[coupled_sum_mc(budget) for _ in range(R)] for budget in budgets])
+    results = np.array([[coupled_sum_mc(budget, GBM.s0, GBM.maturity, milstein_gbm, european) for _ in range(R)] for budget in budgets])
     means, stds, sdes, costs, _ = results.transpose(2, 0, 1)
 
     estimator_mean = means.mean(axis=1)
@@ -104,26 +111,24 @@ def coupled_sum_study():
     plt.tight_layout()
     plt.show()
 
-def standard_mc(budget):
+def standard_mc(budget, x0, maturity, scheme, test_fn):
     zeta = 1
     n_steps = round(budget ** (1 / (2 * zeta + 1)))
     n_paths = round(budget ** (2 * zeta / (2 * zeta + 1)))
-    dt = GBM.maturity / n_steps
+    dt = maturity / n_steps
     dw_batch = np.random.normal(loc=0.0, scale=np.sqrt(dt), size=(n_paths, n_steps))
-    s_maturity = milstein_gbm(GBM.s0, dt, dw_batch)
-    payoff = european(s_maturity)
+    payoff = test_fn(scheme(x0, dt, dw_batch))
     mean = np.mean(payoff)
     std = np.std(payoff, ddof=1)
     se = std / np.sqrt(n_paths)
     cost = n_steps * n_paths
     return mean, std, se, cost, n_paths
 
-def comparison_study():
-    budgets = np.array([20_000, 100_000, 500_000])
+def comparison_study(budgets, x0, maturity, scheme, test_fn, true_val, title=''):
     R = 10
 
-    results_cs  = np.array([[coupled_sum_mc(b) for _ in range(R)] for b in budgets])
-    results_smc = np.array([[standard_mc(b)    for _ in range(R)] for b in budgets])
+    results_cs  = np.array([[coupled_sum_mc(b, x0, maturity, scheme, test_fn) for _ in range(R)] for b in budgets])
+    results_smc = np.array([[standard_mc(b, x0, maturity, scheme, test_fn)    for _ in range(R)] for b in budgets])
 
     def summarise(results):
         means, stds, sdes, costs, n_samples = results.transpose(2, 0, 1)
@@ -132,8 +137,8 @@ def comparison_study():
         variance  = (stds ** 2).mean(axis=1)
         ci_left   = mean - 1.96 * se
         ci_right  = mean + 1.96 * se
-        rmse      = np.sqrt(((means - ALPHA_TRUE) ** 2).mean(axis=1))
-        bias      = mean - ALPHA_TRUE
+        rmse      = np.sqrt(((means - true_val) ** 2).mean(axis=1))
+        bias      = mean - true_val
         avg_work  = (costs / n_samples).mean(axis=1)
         work_var  = avg_work * variance
         return mean, se, variance, ci_left, ci_right, rmse, bias, work_var
@@ -147,7 +152,7 @@ def comparison_study():
         ('Coupled-sum', mean_cs,  se_cs,  var_cs,  cil_cs,  cir_cs,  rmse_cs,  bias_cs,  wv_cs),
         ('Standard MC', mean_smc, se_smc, var_smc, cil_smc, cir_smc, rmse_smc, bias_smc, wv_smc),
     ]:
-        print(f"\n--- {label} ---")
+        print(f"\n--- {title} {label} ---")
         header = f"{'Budget':>10}  {'Mean':>10}  {'Variance':>10}  {'Bias':>10}  {'RMSE':>10}  {'Work×Var':>10}  {'95% CI':>28}"
         print(header)
         print('-' * len(header))
@@ -159,29 +164,30 @@ def comparison_study():
 
     for mean, se, label, fmt in [(mean_cs, se_cs, 'Coupled-sum', 'o-'), (mean_smc, se_smc, 'Standard MC', 's--')]:
         axes[0].errorbar(budgets, mean, yerr=1.96 * se, fmt=fmt, capsize=5, label=label)
-    axes[0].axhline(ALPHA_TRUE, color='r', linestyle=':', label=f'True = {ALPHA_TRUE}')
+    axes[0].axhline(true_val, color='r', linestyle=':', label=f'Ref = {true_val:.6f}')
     axes[0].set_xscale('log')
     axes[0].set_xlabel('Budget')
     axes[0].set_ylabel('Estimated mean')
-    axes[0].set_title('Mean ± 95% CI')
+    axes[0].set_title(f'{title} Mean ± 95% CI')
     axes[0].legend()
 
     for rmse, label, fmt in [(rmse_cs, 'Coupled-sum', 'o-'), (rmse_smc, 'Standard MC', 's--')]:
         axes[1].loglog(budgets, rmse, fmt, label=label)
     axes[1].set_xlabel('Budget')
     axes[1].set_ylabel('RMSE')
-    axes[1].set_title('RMSE vs budget')
+    axes[1].set_title(f'{title} RMSE vs budget')
     axes[1].legend()
 
     for wv, label, fmt in [(wv_cs, 'Coupled-sum', 'o-'), (wv_smc, 'Standard MC', 's--')]:
         axes[2].loglog(budgets, wv, fmt, label=label)
     axes[2].set_xlabel('Budget')
     axes[2].set_ylabel('Work × Variance')
-    axes[2].set_title('Work–variance product')
+    axes[2].set_title(f'{title} Work–variance product')
     axes[2].legend()
 
     plt.tight_layout()
     plt.show()
+
 
 def plot_cir_trajectories(n_steps=2**8, n_paths=30):
     z0 = np.sqrt(CIR.v0)
@@ -212,6 +218,14 @@ def plot_cir_trajectories(n_steps=2**8, n_paths=30):
 
 def european(x):
     return np.exp(-GBM.mu * GBM.maturity) * np.maximum(x - GBM.strike, 0.0)
+
+def cir_european(v):
+    return np.exp(-0.05 * CIR.maturity) * np.maximum(v - 0.25, 0.0)
+
+def milstein_cir_scheme(v0, _dt, dw):
+    if dw.ndim == 1:
+        return drift_implicit_milstein_cir(v0, dw[np.newaxis, :])[:, -1][0]
+    return drift_implicit_milstein_cir(v0, dw)[:, -1]
 
 def milstein_step(
         x: float,
