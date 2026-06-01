@@ -10,18 +10,8 @@ ALPHA_TRUE = 0.104505836
 np.random.seed(50)
 
 def main():
-    n_steps = 2 ** 8
-    n_paths = 30
-    z = lamperti_drift_implicit_em_cir(np.sqrt(CIR.v0), n_steps, n_paths)
-    v = z ** 2
-    plt.plot(np.linspace(0, CIR.maturity, n_steps + 1), v.T)
-    plt.axhline(y=0.0)
-    mean_cir = np.mean(v[:, -1])
-    var_cir = np.var(v[:, -1])
-
-    v_milstein = drift_implicit_milstein_cir(CIR.v0, n_steps, n_paths)
-    mean_milstein_cir = np.mean(v_milstein[:, -1])
-    var_milstein_cir = np.var(v_milstein[:, -1])
+    drift_implicit_study_strong_order()
+    plot_cir_trajectories()
 
 
     e_kt = np.exp(-CIR.kappa * CIR.maturity)
@@ -118,6 +108,33 @@ def standard_mc(budget): # TODO: rethink how to use for other schemes than milst
     std = np.std(payoff, ddof=1)
     return mean, std
 
+def plot_cir_trajectories(n_steps=2**8, n_paths=30):
+    z0 = np.sqrt(CIR.v0)
+    dt = CIR.maturity / n_steps
+    t = np.linspace(0, CIR.maturity, n_steps + 1)
+
+    dw_em = np.random.normal(0, np.sqrt(dt), (n_paths, n_steps))
+    v_em = lamperti_drift_implicit_em_cir(z0, dw_em) ** 2
+
+    dw_mil = np.random.normal(0, np.sqrt(dt), (n_paths, n_steps))
+    v_milstein = drift_implicit_milstein_cir(CIR.v0, dw_mil)
+
+    _, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
+    ax1.plot(t, v_em.T)
+    ax1.axhline(y=0.0, color='k', linestyle='--', alpha=0.3)
+    ax1.set_xlabel('Time')
+    ax1.set_ylabel('v')
+    ax1.set_title('Lamperti Drift Implicit EM')
+
+    ax2.plot(t, v_milstein.T)
+    ax2.axhline(y=0.0, color='k', linestyle='--', alpha=0.3)
+    ax2.set_xlabel('Time')
+    ax2.set_ylabel('v')
+    ax2.set_title('Drift Implicit Milstein')
+
+    plt.tight_layout()
+    plt.show()
+
 def european(x):
     return np.exp(-GBM.mu * GBM.maturity) * np.maximum(x - GBM.strike, 0.0)
 
@@ -155,30 +172,77 @@ def milstein_gbm(x0, dt, dw):
     factors = 1 + GBM.mu * dt + GBM.sigma * dw + 0.5 * GBM.sigma ** 2 * (dw ** 2 - dt)
     return x0 * np.prod(factors, axis=-1)
 
-def lamperti_drift_implicit_em_cir(z0, n_steps, n_paths):
+def lamperti_drift_implicit_em_cir(z0, dw):
+    n_paths, n_steps = dw.shape
     dt = CIR.maturity / n_steps
-    dw = np.random.normal(loc=0.0, scale=np.sqrt(dt), size=(n_paths, n_steps))
     z = np.empty(shape=(n_paths, n_steps + 1))
     z[:, 0] = z0
-    dt = CIR.maturity / n_steps
     a = 1 + CIR.kappa * dt / 2
-    c = CIR.kappa * dt / 2 * ( CIR.theta - CIR.sigma ** 2 / (4 * CIR.kappa))
+    c = CIR.kappa * dt / 2 * (CIR.theta - CIR.sigma ** 2 / (4 * CIR.kappa))
     for k in range(n_steps):
         b = z[:, k] + CIR.sigma / 2 * dw[:, k]
         disc = b ** 2 + 4 * a * c
         z[:, k + 1] = (b + np.sqrt(disc)) / (2 * a)
+    return z
 
-    return z 
-
-def drift_implicit_milstein_cir(v0, n_steps, n_paths):
+def drift_implicit_milstein_cir(v0, dw):
+    n_paths, n_steps = dw.shape
     dt = CIR.maturity / n_steps
-    dw = np.random.normal(loc=0.0, scale=np.sqrt(dt), size=(n_paths, n_steps))
     v = np.empty(shape=(n_paths, n_steps + 1))
     v[:, 0] = v0
-    dt = CIR.maturity / n_steps
     for k in range(n_steps):
         v[:, k + 1] = 1 / (1 + CIR.kappa * dt) * (v[:, k] + CIR.kappa * CIR.theta * dt + CIR.sigma * np.sqrt(v[:, k]) * dw[:, k] + CIR.sigma ** 2 / 4 * (dw[:, k] ** 2 - dt))
     return v
+
+def drift_implicit_study_strong_order():
+    levels = range(4, 10)
+    n_ref = 2 ** (max(levels) + 2)
+    n_paths = 2000
+
+    dw_fine = np.random.normal(0, np.sqrt(CIR.maturity / n_ref), (n_paths, n_ref))
+
+    z0 = np.sqrt(CIR.v0)
+    v_ref = drift_implicit_milstein_cir(CIR.v0, dw_fine)[:, -1]
+
+    errors_em = []
+    errors_milstein = []
+
+    for l in levels:
+        n = 2 ** l
+        ratio = n_ref // n
+        dw_coarse = dw_fine.reshape(n_paths, n, ratio).sum(axis=2)
+
+        v_em = lamperti_drift_implicit_em_cir(z0, dw_coarse)[:, -1] ** 2
+        errors_em.append(np.mean(np.abs(v_em - v_ref)))
+
+        v_mil = drift_implicit_milstein_cir(CIR.v0, dw_coarse)[:, -1]
+        errors_milstein.append(np.mean(np.abs(v_mil - v_ref)))
+
+    h = np.array([CIR.maturity / 2**l for l in levels])
+    slope_em,  _ = np.polyfit(np.log(h), np.log(errors_em),       1)
+    slope_mil, _ = np.polyfit(np.log(h), np.log(errors_milstein), 1)
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+    for ax, errors, slope, name in zip(
+        axes,
+        [np.array(errors_em), np.array(errors_milstein)],
+        [slope_em, slope_mil],
+        ['Lamperti Drift-Implicit EM', 'Drift-Implicit Milstein'],
+    ):
+        c = errors[0] / h[0] ** 0.5
+        ax.loglog(h, errors,       'o-',  label=f'strong error (order≈{slope:.2f})')
+        ax.loglog(h, c * h ** 0.5, '--',  label='O(√h)')
+        ax.loglog(h, c * h ** 1.0, '--',  label='O(h)')
+        ax.set_xlabel('h')
+        ax.set_ylabel('E[|V_h(T) − V_ref(T)|]')
+        ax.set_title(f'{name}\nestimated strong order: {slope:.2f}')
+        ax.legend()
+    plt.tight_layout()
+    plt.show()
+
+    print(f"Lamperti EM   strong order ≈ {slope_em:.3f}")
+    print(f"Milstein CIR  strong order ≈ {slope_mil:.3f}")
+    return slope_em, slope_mil
 
 if __name__ == '__main__':
     main()
