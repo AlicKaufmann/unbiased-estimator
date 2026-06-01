@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "unbiased-estimator"
+version = "0.1.0"
+description = "Unbiased estimation via randomization — application to option pricing under GBM and CIR models"
+authors = [{ name = "Alic Kaufmann", email = "alic.kaufmann@ik.me" }]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "matplotlib>=3.7",
+]
+
+[project.scripts]
+unbiased-estimator = "main:main"
+
+[tool.setuptools]
+py-modules = ["main", "config"]

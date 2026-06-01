@@ -1,10 +1,35 @@
-\documentclass{article}
+\documentclass[11pt, a4paper]{article}
+
+% --- fonts & encoding ---
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+
+% --- layout ---
+\usepackage[a4paper, top=2.5cm, bottom=2.5cm, left=3cm, right=3cm]{geometry}
+\usepackage{parskip}
+
+% --- math ---
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{bbm}
+
+% --- figures & tables ---
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{float}
+
+% --- colours & section style ---
+\usepackage[dvipsnames]{xcolor}
+\usepackage{titlesec}
+\definecolor{headerblue}{RGB}{30, 70, 130}
+\titleformat{\section}{\large\bfseries\color{headerblue}}{}{0em}{}[{\color{headerblue}\rule{\linewidth}{0.4pt}}]
+\titleformat{\subsection}{\normalsize\bfseries\color{headerblue!80!black}}{}{0em}{}
+\titlespacing*{\section}{0pt}{1.8ex plus 0.4ex minus 0.2ex}{0.6ex}
+\titlespacing*{\subsection}{0pt}{1.2ex plus 0.3ex}{0.4ex}
+
+% --- hyperlinks ---
+\usepackage[colorlinks=true, linkcolor=headerblue, citecolor=headerblue, urlcolor=headerblue]{hyperref}
 
 \title{Unbiased estimation via randomization - Application to
 Option Pricing}
@@ -14,13 +39,15 @@ Option Pricing}
 \begin{document}
 
 \maketitle
-(Q1)
-1.
+
+\section*{(Q1)}
+
+\subsection*{Q1.1}
 \begin{align*}
-    \|Y_l -Y\|_2^2
-    &= E[Y_l-Y]^2\\
-    &= E[Y_l^2 - 2Y_l Y + Y^2]\\
-    &= E[Y_l^2]-2E[Y_l]E[Y]+E[Y^2]\quad\text{ by independence of }Y_l\text{ and }Y\\
+    \|Y_\ell -Y\|_2^2
+    &= E[(Y_\ell-Y)^2]\\
+    &= E[Y_\ell^2 - 2Y_\ell Y + Y^2]\\
+    &= E[Y_\ell^2]-2E[Y_\ell]E[Y]+E[Y^2]\quad\text{ by independence of }Y_\ell\text{ and }Y\\
     &\to E[Y^2]-2 E[Y]^2 + E[Y^2]\\
     &= 2\underbrace{(E[Y^2]-E[Y]^2)}_{Var[Y]}\\
     &=2 Var[Y] \not\to 0\quad\text{ if }Var[Y]\neq0
@@ -29,20 +56,20 @@ Option Pricing}
 By assumption, $N$ is almost surely finite, i.e. $$P(N=\infty)=0.$$
 
 But $$\{N\ge 1\}\supset \{N\ge 2\}\supset\{N\ge3\}\supset\ldots$$
-and  $\cap_{l\ge 1}\{N\ge l\}=\{N=\infty\}.$ so by continuity of probability,
-$$0=P(N=\infty)=\lim_{l\to\infty}P(N\ge l), $$ so for $l$ big enough
-$$\frac{\|Y_{l-1}-Y\|_2^2}{P(N\ge l)}\ge \frac{Var[Y]}{P(N\ge l)}.$$
-But since $P(N\ge l)\to0$ we have $$\frac{Var[Y]}{P(N\ge l)}\to\infty$$ so
-$$\sum_{l=1}^{\infty} \frac{\|Y_{l-1}-Y_l\|_2^2}{P(N\ge l)}=\infty$$
-2. We want to show
+and  $\cap_{\ell\ge 1}\{N\ge \ell\}=\{N=\infty\}.$ so by continuity of probability,
+$$0=P(N=\infty)=\lim_{\ell\to\infty}P(N\ge \ell), $$ so for $\ell$ big enough
+$$\frac{\|Y_{\ell-1}-Y\|_2^2}{P(N\ge \ell)}\ge \frac{Var[Y]}{P(N\ge \ell)}.$$
+But since $P(N\ge \ell)\to0$ we have $$\frac{Var[Y]}{P(N\ge \ell)}\to\infty$$ so
+$$\sum_{\ell=1}^{\infty} \frac{\|Y_{\ell-1}-Y_\ell\|_2^2}{P(N\ge \ell)}=\infty$$
+\subsection*{Q1.2} We want to show
 
 \begin{equation}\label{dummy}
-\frac{\|Y_{l-1}-Y\|_2^2}{P(N\ge l)}<\infty.
+\frac{\|Y_{\ell-1}-Y\|_2^2}{P(N\ge \ell)}<\infty.
 \end{equation}
 By the strong order $p$ assumption and the fact that we have a geometric time step, we have
 \begin{align*}
-\frac{\|Y_{l-1}-Y\|_2^2}{P(N\ge l)}&\le \frac{\left(C\left(\frac{T}{2^{l-1}}\right)^p\right)^2}{q^l} \\
-&= \underbrace{CT^{2p}2^{2p}}_{\tilde{C}}\left(\frac{1}{2^{2p}q}\right)^l.
+\frac{\|Y_{\ell-1}-Y\|_2^2}{P(N\ge \ell)}&\le \frac{\left(C\left(\frac{T}{2^{\ell-1}}\right)^p\right)^2}{q^\ell} \\
+&= \underbrace{CT^{2p}2^{2p}}_{\tilde{C}}\left(\frac{1}{2^{2p}q}\right)^\ell.
 \end{align*}
 In order for this geometric series to converge, we need $\frac{1}{2^{2p}q}<1$, i.e. $q>2^{-2p}.$
 
@@ -53,13 +80,14 @@ So we just need to show $E[\bar{Z}^2]<\infty.$
 But 
 \begin{align*}
     E[\bar{Z}^2]
-    &=\sum_{l=0}^{\infty} \frac{\bar{\nu}_l}{P(N\ge l)}\\
-    &=\sum_{l=0}^{\infty} \frac{\|Y_{l-1}-Y\|_2^2-\|Y_l-Y\|_2^2}{P(N\ge l)}\\
-    &\le\sum_{l=0}^{\infty} \frac{\|Y_{l-1}-Y\|_2^2}{P(N\ge l)}<\infty\quad\text{ by }\ref{dummy}
+    &=\sum_{\ell=0}^{\infty} \frac{\bar{\nu}_\ell}{P(N\ge \ell)}\\
+    &=\sum_{\ell=0}^{\infty} \frac{\|Y_{\ell-1}-Y\|_2^2-\|Y_\ell-Y\|_2^2}{P(N\ge \ell)}\\
+    &\le\sum_{\ell=0}^{\infty} \frac{\|Y_{\ell-1}-Y\|_2^2}{P(N\ge \ell)}<\infty\quad\text{ by }\ref{dummy}
 \end{align*}
 
-(Q2)
-1.
+\section*{(Q2)}
+
+\subsection*{Q2.1}
 \begin{align*}
     E[\bar{\tau}]\\
     &= E\left[\sum_{j=1}^N \bar{t}_j\right]\\
@@ -67,18 +95,21 @@ But
     &= \sum_{j=1}^{\infty}\bar{t}_jE\left[\mathbbm{1}(N\ge j)\right]\quad\text{ by Tonelli}\\
     &= \sum_{j=1}^{\infty} \bar{t}_jP(N\ge j)
 \end{align*}
-2. Since $g(\alpha F) = g(F)$,
+\subsection*{Q2.2}
 $$\min_F \underbrace{\left(\sum_{j=0}^{\infty}\frac{\beta_j}{F_j}\right)}_{:=A(F)}\underbrace{\left(\sum_{j=0}^{\infty}t_j F_j\right)}_{:=B(F)}$$
 is equivalent to solving
-\begin{align*}
-    &\min_F &\sum_{j=0}^{\infty}\frac{\beta_j}{F_j}\\
-    &\text{subject to } &\sum_{j=0}^{\infty}t_jF_j=C
-\end{align*}
+\begin{alignat*}{2}
+    & \min_{F}          && \quad \sum_{j=0}^{\infty}\frac{\beta_j}{F_j}\\[4pt]
+    & \text{subject to} && \quad \sum_{j=0}^{\infty}t_jF_j=C
+\end{alignat*}
 
 indeed if $F^*$ is a minimizer of $A(F)B(F)$, then $F^*$ is a minimizer of
-$$\min_F A(F)\text{ s.t. } B(F)=\underbrace{B(F^*)}_{:=C}$$. Indeed, if this is not
+\begin{equation*}
+    \min_{F}\; A(F) \quad \text{s.t.} \quad B(F)=\underbrace{B(F^*)}_{:=C}.
+\end{equation*}
+Indeed, if this is not
 the case, there exists $\hat{F}$ such that $A(\hat{F})<A(F^*$) with
-$A(\hat{F})=A(F^*)$. But then $A(\hat{F})B(\hat{F})<A(F^*)B(F^*)$ which
+$B(\hat{F})=B(F^*)$. But then $A(\hat{F})B(\hat{F})<A(F^*)B(F^*)$ which
 contradicts optimality of $F^*$.
 
 This is a constrained optimization problem so we use Lagrange multipliers:
@@ -99,7 +130,8 @@ $F^*$ satisfies the KKT conditions. Moreover, the problem is strictly convex so 
 
 
 
-3. \begin{align*}
+\subsection*{Q2.3}
+\begin{align*}
 \|\Delta_j\|_2
 &=\|Y_j-Y_{j-1}\|\\
 &\le \underbrace{\|Y_j - Y\|_2}_{C2^{-pj}} + \underbrace{\|Y-Y_{j-1}\|_2}_{C2^{-p(j-1)}}\\
@@ -111,11 +143,11 @@ E\left[\Delta_j^2\right]&=\|\Delta_j\|_2^2\\
 &=\underbrace{\left(C + C2^p\right)^2}_{\tilde{C}} 2^{-2pj}\\
 &=O(2^{-2pj})
 \end{align*}
-4.In order to get the best balance between the variance and the cost, we note that we need
+In order to get the best balance between the variance and the cost, we note that we need
 to consider the optimal $F^*_j=P(N\ge j)$.
 
 We know $F^*_j \propto \sqrt{\frac{\nu_j}{t_j}} \propto \sqrt{\frac{2^{-2pj}}{2^j}}=2^{-j(p+\frac12)}$.
-Since we assumed that the survival distribution is of the form $P(N\ge l)=2^{-rl}$,
+Since we assumed that the survival distribution is of the form $P(N\ge \ell)=2^{-r\ell}$,
 we have $r^*=p + \frac12$ is balancing the variance and the cost.
 
 Let us determine the conditions for $E[\bar{\tau}]$ and $Var[\bar{Z}]$ to be finite.
@@ -131,13 +163,63 @@ By the same argument as in (Q1.2), $Var[\bar{Z}]<\infty$ is equivalent to $E\lef
 But 
 \begin{align*}
     E[\bar{Z}^2]
-    &= \sum_{l=0}^{\infty}\frac{\bar{\nu}_l}{P(N\ge l)}\\
-    &= \sum_{l=0}^{\infty}\frac{C2^{-2pj}}{2^{-rj}}\\
-    &= \sum_{l=0}^{\infty}C 2^{j(r-2p)}
+    &= \sum_{\ell=0}^{\infty}\frac{\bar{\nu}_\ell}{P(N\ge \ell)}\\
+    &= \sum_{\ell=0}^{\infty}\frac{C2^{-2pj}}{2^{-rj}}\\
+    &= \sum_{\ell=0}^{\infty}C 2^{j(r-2p)}
 \end{align*}
 and in order for the series to converge, we need $j(r-2p)<0$, i.e. $r<2p$.
 
-(Q3)
+\subsection*{Q2.4} With the optimal choice $r^*=p+\frac12$, the two finiteness conditions become
+\[
+  r^* > 1 \iff p > \tfrac12, \qquad r^* < 2p \iff p > \tfrac12.
+\]
+Both are equivalent and require $p>\frac12$. For Euler--Maruyama ($p=\frac12$) the optimal rate
+is $r^*=1$, which sits exactly on the boundary: the series $E[\bar\tau]=\sum_j
+t_j\,2^{-j}=\sum_j c\cdot 2^j\cdot 2^{-j}=\sum_j c$ diverges. Hence EM does not yield
+a finite expected computational cost, regardless of the choice of $q$.
+
+Milstein ($p=1$) gives $r^*=\frac32$, comfortably inside both conditions ($1<\frac32<2$),
+so $E[\bar\tau]<\infty$ and $\text{Var}(\bar Z)<\infty$.
+
+Increasing $p$ beyond 1 further improves efficiency: the work--variance product scales as
+$E[\bar\tau]\cdot\text{Var}(\bar Z)\propto(r^*-1)^{-1}(2p-r^*)^{-1}=(p-\tfrac12)^{-2}$,
+which decreases as $p$ increases. However the gain is large when $p$ is close to $\frac12$
+(EM to Milstein) and diminishes for $p\gg 1$. In practice, going from $p=\frac12$ to $p=1$
+is a qualitative improvement (from infeasible to feasible), while going from $p=1$ to higher
+orders yields only a quantitative, diminishing gain.
+
+\section*{(Q3)}
+
+\subsection*{Q3.1 -- Milstein scheme with coupling between levels}
+
+At level $\ell$, the Milstein scheme uses $n_\ell=2^\ell$ steps of size $h_\ell=T/2^\ell$.
+Fine Brownian increments $\Delta B_k^{(\ell)}\sim\mathcal{N}(0,h_\ell)$ are generated for
+$k=0,\ldots,2^\ell-1$, and the coarse increments at level $\ell-1$ are obtained by
+the \emph{Brownian refinement coupling}:
+\[
+  \Delta B_k^{(\ell-1)} := \Delta B_{2k}^{(\ell)} + \Delta B_{2k+1}^{(\ell)},
+  \quad k=0,\ldots,2^{\ell-1}-1.
+\]
+Both levels are then driven by the \emph{same} Brownian path. The fine and coarse Milstein
+approximations of $S_T$ read
+\begin{align*}
+  S_{k+1}^f &= S_k^f\!\left(1 + \mu h_\ell + \sigma\Delta B_k^{(\ell)}
+              + \tfrac{\sigma^2}{2}\bigl((\Delta B_k^{(\ell)})^2 - h_\ell\bigr)\right),\\
+  S_{k+1}^c &= S_k^c\!\left(1 + \mu h_{\ell-1} + \sigma\Delta B_k^{(\ell-1)}
+              + \tfrac{\sigma^2}{2}\bigl((\Delta B_k^{(\ell-1)})^2 - h_{\ell-1}\bigr)\right).
+\end{align*}
+The level difference $\Delta_\ell = \varphi(S_T^f) - \varphi(S_T^c)$ is small because both
+paths are driven by consistent increments, which is essential for reducing the variance of
+the coupled-sum estimator.
+
+\textbf{Why Milstein rather than Euler--Maruyama?}
+As shown in Q2.4, the coupled-sum estimator requires a numerical scheme with strong order
+$p>\frac12$ for both $E[\bar\tau]$ and $\text{Var}(\bar Z)$ to be finite at the optimal
+truncation rate $r^*=p+\frac12$. Euler--Maruyama has strong order $p=\frac12$, placing it
+exactly on the boundary where the expected computational cost $E[\bar\tau]$ diverges.
+Milstein achieves $p=1$, giving $r^*=\frac32$ and ensuring both quantities are finite with
+margin. This makes Milstein the minimal scheme for which the coupled-sum estimator is
+well-defined with the choice $q=2^{-3/2}$.
 
 \subsection*{Q3.2 -- Coupled-sum estimator}
 
@@ -232,14 +314,15 @@ Several observations follow from these results.
   \label{fig:q33}
 \end{figure}
 
-(Q4)
-1. Suppose by contradiction that there is a path with $\tau_{\epsilon}<\infty$. Then by continuity of
+\section*{(Q4)}
+
+\subsection*{Q4.1} Suppose by contradiction that there is a path with $\tau_{\epsilon}<\infty$. Then by continuity of
 $V_t$ there is a time where $V_t$ first crosses $0$. At this point
 the process reads $dV_t = \kappa\theta > 0$ which pushes the
 process back to a positive value. So the process can never be
 negative. But then the original process is also always positive.
 
-2. The idea is to find a Lyapunov function $f(x)$ which explodes
+\subsection*{Q4.2} The idea is to find a Lyapunov function $f(x)$ which explodes
 when $x\to 0$, for example $f(x)=x^{-m}$. In order to derive the
 dynamics of $f(V_t)$ we use Itô's formula:
 $$df(V_t) = f'(V_t)dV_t +\frac12 f''(V_t)\underbrace{d\langle V\rangle_t}_{\sigma^2 V_tdt}$$
@@ -257,7 +340,7 @@ So we have
     &= -mV_t^{-m-1}\kappa (\theta - V_t)dt - mV_t^{-m-1}\sigma \sqrt{V_t}dB_t + \frac12 m(m+1)V_t^{-m-1}\sigma^2dt\\
     &= \left[-m V_t^{-m-1}\kappa(\theta -V_t) + \tfrac12 m(m+1)V_t^{-m-1}\sigma^2\right]dt\\
     &\quad - mV_t^{-m-1}\sigma\sqrt{V_t}\,dB_t\\
-    &= mkV_t^{-m}dt -mV_t^{-m-\frac12}\sigma dB_t
+    &= m\kappa V_t^{-m}dt -mV_t^{-m-\frac12}\sigma dB_t
 \end{align*}
 
 where in the last line we set $m=2\kappa\theta/\sigma^2-1$ in order to simplify
@@ -268,16 +351,16 @@ $V_t^{-m}$ blows up if $V_t$ hits $0$. But we can write Itô's formula
 for the stopped process $$V_{t\wedge\tau_{\epsilon}}\quad\text{where }\tau_{\epsilon}=\inf\{t: V_t\le\epsilon\}.$$
 We obtain $$V_{t\wedge\tau_{\epsilon}}^{-m}=V_0^{-m} + \int_0^t m\kappa V_{s\wedge\tau_{\epsilon}}^{-m}ds - \int_0^t m V_{s\wedge\tau_{\epsilon}}^{-m-1/2}\sigma dB_s.$$
 Now taking expectation, the term with the Brownian motion disappears because it is a
-martingale since $$E[\int_0^{t\wedge\tau_{\epsilon}} V_s^{-2(m+1/2}ds] \le \epsilon^{-2m-1}t<\infty$$
-so $$E[V_{s\wedge\tau_{\epsilon}}^{-m}]=V_0^{-m} + mk\int_0^{t}E[V_{s\wedge\tau_{\epsilon}}^{-m}]ds$$ where
+martingale since $$E[\int_0^{t\wedge\tau_{\epsilon}} V_s^{-2(m+1/2)}ds] \le \epsilon^{-2m-1}t<\infty$$
+so $$E[V_{s\wedge\tau_{\epsilon}}^{-m}]=V_0^{-m} + m\kappa\int_0^{t}E[V_{s\wedge\tau_{\epsilon}}^{-m}]ds$$ where
 we passed the expectation inside the integral using Tonelli's theorem.
-By Grönwall's inequality, we then get $$E[V_{s\wedge\tau_{\epsilon}}^{-m}]\le V_0^{-m}e^{mkt}.$$
+By Grönwall's inequality, we then get $$E[V_{s\wedge\tau_{\epsilon}}^{-m}]\le V_0^{-m}e^{m\kappa t}.$$
 
 Now note
 \begin{align*}
     P(\tau_{\epsilon}<t) 
     &= P(V_{s\wedge\tau_{\epsilon}}^{-m}\ge\epsilon^{-m})\\
-    &le E[V_{s\wedge\tau_{\epsilon}}^{-m}]\quad\text{Markov's inequality}\\
+    &\le E[V_{s\wedge\tau_{\epsilon}}^{-m}]\quad\text{by Markov's inequality}\\
     \le V_0^{-m}e^{m\kappa t}\epsilon^m.
 \end{align*}
 
@@ -291,7 +374,7 @@ This is because
 
 So $$P(\exists t\in[0,T: V_t\le0)=0$$ and thus $$P(V_t>0\forall t\in[0,T])=1$$ 
 
-3. Again, we use Itô's formula with
+\subsection*{Q4.3} Again, we use Itô's formula with
 \begin{align*}
 g(x) &= x^{1/2}\\
 g'(x) &= \frac12 x^{-1/2}\\
@@ -311,7 +394,7 @@ We get
     &= \frac12\kappa \left[\left(\theta-\frac{\sigma^2}{4\kappa}\right)Z_t^{-1}-Z_t\right]dt +\frac12 \sigma dB_t
 \end{align*}
 
-(Q5)
+\section*{(Q5)}
 
 \subsection*{Q5.2 -- Option pricing under the CIR model}
 
