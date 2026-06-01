@@ -10,46 +10,13 @@ ALPHA_TRUE = 0.104505836
 np.random.seed(50)
 
 def main():
+
+
+    coupled_sum_study()
+    comparison_study()
+
     drift_implicit_study_strong_order()
     plot_cir_trajectories()
-
-
-    e_kt = np.exp(-CIR.kappa * CIR.maturity)
-    mean_exact = CIR.v0 * e_kt + CIR.theta * (1 - e_kt)
-    var_exact   = (CIR.v0 * CIR.sigma**2 / CIR.kappa * (e_kt - e_kt**2)
-                   + CIR.theta * CIR.sigma**2 / (2*CIR.kappa) * (1 - e_kt)**2)
-
-    # v_maturity = z_maturity ** 2
-    
-    budgets = np.array([20_000, 100_000, 500_000])
-    R = 10
-    results = np.array([[coupled_sum_mc(budget) for _ in range(R)] for budget in budgets])
-    means, stds, sdes, costs, n_samples = results.transpose(2, 0, 1)
-    mean_across_runs = means.mean(axis=1)   # shape: (len(budgets),)
-    empirical_bias = mean_across_runs - ALPHA_TRUE
-    std_across_runs  = means.std(axis=1)
-    se_across_runs   = sdes.mean(axis=1)
-    avg_work_per_replicate = costs / n_samples   # shape: (len(budgets), R)
-    work_variance = (avg_work_per_replicate * stds ** 2).mean(axis=1)
-
-    ci_left  = mean_across_runs - 1.96 * se_across_runs
-    ci_right = mean_across_runs + 1.96 * se_across_runs
-    rmse = np.sqrt(((means - ALPHA_TRUE) ** 2).mean(axis=1))  # shape: (len(budgets),)
-
-
-        
-    plt.errorbar(budgets, means, sdes)
-    plt.show()
-    budget = 500_000
-        
-        # compute confidence interval
-    mean, std, sde, cost = coupled_sum_mc(budget)
-    critical_value = 1.96 # for 95% confidence interval
-    left = mean - critical_value * sde
-    right = mean + critical_value * sde
-    
-
-    alpha_mc = standard_mc(budget)
 
     print("end of main")
 
@@ -96,17 +63,125 @@ def coupled_sum_mc(budget):
     
     return sample_mean, sample_std, standard_error, sample_cost, n_sample
 
-def standard_mc(budget): # TODO: rethink how to use for other schemes than milstein
+def coupled_sum_study():
+    budgets = np.array([20_000, 100_000, 500_000])
+    R = 10
+    results = np.array([[coupled_sum_mc(budget) for _ in range(R)] for budget in budgets])
+    means, stds, sdes, costs, _ = results.transpose(2, 0, 1)
+
+    estimator_mean = means.mean(axis=1)
+    estimator_se   = sdes.mean(axis=1)
+    estimator_variance   = (stds ** 2).mean(axis=1)
+    ci_left        = estimator_mean - 1.96 * estimator_se
+    ci_right       = estimator_mean + 1.96 * estimator_se
+    rmse           = np.sqrt(((means - ALPHA_TRUE) ** 2).mean(axis=1))
+    bias           = estimator_mean - ALPHA_TRUE
+    avg_cost       = costs.mean(axis=1)
+
+    header = f"{'Budget':>10}  {'Mean':>10}  {'Variance':>10}  {'Bias':>10}  {'RMSE':>10}  {'95% CI':>28}  {'Avg cost':>10}"
+    print(header)
+    print('-' * len(header))
+    for i, budget in enumerate(budgets):
+        ci_str = f"[{ci_left[i]:.6f}, {ci_right[i]:.6f}]"
+        print(f"{budget:>10}  {estimator_mean[i]:>10.6f}  {estimator_variance[i]:>10.2e}  {bias[i]:>10.2e}  {rmse[i]:>10.2e}  {ci_str:>28}  {avg_cost[i]:>10.0f}")
+
+    _, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
+
+    ax1.errorbar(budgets, estimator_mean, yerr=1.96 * estimator_se, fmt='o-', capsize=5, label='Mean ± 95% CI')
+    ax1.axhline(ALPHA_TRUE, color='r', linestyle='--', label=f'True = {ALPHA_TRUE}')
+    ax1.set_xscale('log')
+    ax1.set_xlabel('Budget')
+    ax1.set_ylabel('Estimated mean')
+    ax1.set_title('Coupled-sum estimator')
+    ax1.legend()
+
+    ax2.loglog(budgets, rmse, 'o-', label='RMSE')
+    ax2.set_xlabel('Budget')
+    ax2.set_ylabel('RMSE')
+    ax2.set_title('RMSE vs budget')
+    ax2.legend()
+
+    plt.tight_layout()
+    plt.show()
+
+def standard_mc(budget):
     zeta = 1
     n_steps = round(budget ** (1 / (2 * zeta + 1)))
-    dt = GBM.maturity / n_steps
     n_paths = round(budget ** (2 * zeta / (2 * zeta + 1)))
+    dt = GBM.maturity / n_steps
     dw_batch = np.random.normal(loc=0.0, scale=np.sqrt(dt), size=(n_paths, n_steps))
     s_maturity = milstein_gbm(GBM.s0, dt, dw_batch)
     payoff = european(s_maturity)
     mean = np.mean(payoff)
     std = np.std(payoff, ddof=1)
-    return mean, std
+    se = std / np.sqrt(n_paths)
+    cost = n_steps * n_paths
+    return mean, std, se, cost, n_paths
+
+def comparison_study():
+    budgets = np.array([20_000, 100_000, 500_000])
+    R = 10
+
+    results_cs  = np.array([[coupled_sum_mc(b) for _ in range(R)] for b in budgets])
+    results_smc = np.array([[standard_mc(b)    for _ in range(R)] for b in budgets])
+
+    def summarise(results):
+        means, stds, sdes, costs, n_samples = results.transpose(2, 0, 1)
+        mean      = means.mean(axis=1)
+        se        = sdes.mean(axis=1)
+        variance  = (stds ** 2).mean(axis=1)
+        ci_left   = mean - 1.96 * se
+        ci_right  = mean + 1.96 * se
+        rmse      = np.sqrt(((means - ALPHA_TRUE) ** 2).mean(axis=1))
+        bias      = mean - ALPHA_TRUE
+        avg_work  = (costs / n_samples).mean(axis=1)
+        work_var  = avg_work * variance
+        return mean, se, variance, ci_left, ci_right, rmse, bias, work_var
+
+    cs  = summarise(results_cs)
+    smc = summarise(results_smc)
+    mean_cs,  se_cs,  var_cs,  cil_cs,  cir_cs,  rmse_cs,  bias_cs,  wv_cs  = cs
+    mean_smc, se_smc, var_smc, cil_smc, cir_smc, rmse_smc, bias_smc, wv_smc = smc
+
+    for label, mean, se, var, cil, cir, rmse, bias, wv in [
+        ('Coupled-sum', mean_cs,  se_cs,  var_cs,  cil_cs,  cir_cs,  rmse_cs,  bias_cs,  wv_cs),
+        ('Standard MC', mean_smc, se_smc, var_smc, cil_smc, cir_smc, rmse_smc, bias_smc, wv_smc),
+    ]:
+        print(f"\n--- {label} ---")
+        header = f"{'Budget':>10}  {'Mean':>10}  {'Variance':>10}  {'Bias':>10}  {'RMSE':>10}  {'Work×Var':>10}  {'95% CI':>28}"
+        print(header)
+        print('-' * len(header))
+        for i, b in enumerate(budgets):
+            ci_str = f"[{cil[i]:.6f}, {cir[i]:.6f}]"
+            print(f"{b:>10}  {mean[i]:>10.6f}  {var[i]:>10.2e}  {bias[i]:>10.2e}  {rmse[i]:>10.2e}  {wv[i]:>10.2e}  {ci_str:>28}")
+
+    _, axes = plt.subplots(1, 3, figsize=(16, 4))
+
+    for mean, se, label, fmt in [(mean_cs, se_cs, 'Coupled-sum', 'o-'), (mean_smc, se_smc, 'Standard MC', 's--')]:
+        axes[0].errorbar(budgets, mean, yerr=1.96 * se, fmt=fmt, capsize=5, label=label)
+    axes[0].axhline(ALPHA_TRUE, color='r', linestyle=':', label=f'True = {ALPHA_TRUE}')
+    axes[0].set_xscale('log')
+    axes[0].set_xlabel('Budget')
+    axes[0].set_ylabel('Estimated mean')
+    axes[0].set_title('Mean ± 95% CI')
+    axes[0].legend()
+
+    for rmse, label, fmt in [(rmse_cs, 'Coupled-sum', 'o-'), (rmse_smc, 'Standard MC', 's--')]:
+        axes[1].loglog(budgets, rmse, fmt, label=label)
+    axes[1].set_xlabel('Budget')
+    axes[1].set_ylabel('RMSE')
+    axes[1].set_title('RMSE vs budget')
+    axes[1].legend()
+
+    for wv, label, fmt in [(wv_cs, 'Coupled-sum', 'o-'), (wv_smc, 'Standard MC', 's--')]:
+        axes[2].loglog(budgets, wv, fmt, label=label)
+    axes[2].set_xlabel('Budget')
+    axes[2].set_ylabel('Work × Variance')
+    axes[2].set_title('Work–variance product')
+    axes[2].legend()
+
+    plt.tight_layout()
+    plt.show()
 
 def plot_cir_trajectories(n_steps=2**8, n_paths=30):
     z0 = np.sqrt(CIR.v0)
