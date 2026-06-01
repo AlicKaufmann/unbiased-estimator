@@ -10,12 +10,16 @@ ALPHA_TRUE = 0.104505836
 np.random.seed(50)
 
 def main():
-    z = lamperti_drift_implicit_em_cir(np.sqrt(CIR.v0))
+    n_steps = 2 ** 8
+    n_paths = 30
+    z = lamperti_drift_implicit_em_cir(np.sqrt(CIR.v0), n_steps, n_paths)
     v = z ** 2
+    plt.plot(np.linspace(0, CIR.maturity, n_steps + 1), v.T)
+    plt.axhline(y=0.0)
     mean_cir = np.mean(v[:, -1])
     var_cir = np.var(v[:, -1])
 
-    v_milstein = drift_implicit_milstein_cir(CIR.v0)
+    v_milstein = drift_implicit_milstein_cir(CIR.v0, n_steps, n_paths)
     mean_milstein_cir = np.mean(v_milstein[:, -1])
     var_milstein_cir = np.var(v_milstein[:, -1])
 
@@ -41,6 +45,7 @@ def main():
     ci_left  = mean_across_runs - 1.96 * se_across_runs
     ci_right = mean_across_runs + 1.96 * se_across_runs
     rmse = np.sqrt(((means - ALPHA_TRUE) ** 2).mean(axis=1))  # shape: (len(budgets),)
+
 
         
     plt.errorbar(budgets, means, sdes)
@@ -150,9 +155,7 @@ def milstein_gbm(x0, dt, dw):
     factors = 1 + GBM.mu * dt + GBM.sigma * dw + 0.5 * GBM.sigma ** 2 * (dw ** 2 - dt)
     return x0 * np.prod(factors, axis=-1)
 
-def lamperti_drift_implicit_em_cir(z0):
-    n_steps = 2 ** 8 
-    n_paths = 100000
+def lamperti_drift_implicit_em_cir(z0, n_steps, n_paths):
     dt = CIR.maturity / n_steps
     dw = np.random.normal(loc=0.0, scale=np.sqrt(dt), size=(n_paths, n_steps))
     z = np.empty(shape=(n_paths, n_steps + 1))
@@ -167,9 +170,7 @@ def lamperti_drift_implicit_em_cir(z0):
 
     return z 
 
-def drift_implicit_milstein_cir(v0):
-    n_steps = 2 ** 8 
-    n_paths = 100000
+def drift_implicit_milstein_cir(v0, n_steps, n_paths):
     dt = CIR.maturity / n_steps
     dw = np.random.normal(loc=0.0, scale=np.sqrt(dt), size=(n_paths, n_steps))
     v = np.empty(shape=(n_paths, n_steps + 1))
